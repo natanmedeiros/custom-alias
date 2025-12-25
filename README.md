@@ -73,31 +73,20 @@ sub:
     command: -f ${filename}
 ```
 
-## Rules and Behaviors
+## Application Behavior
 
-The application strictly follows a set of defined rules for consistency and reliability.
+### Autocomplete & Navigation
+*   **Smart Suggestions**: As you type, `shoco` dynamically suggests commands, subcommands, and arguments.
+*   **Menu Navigation**:
+    *   **Tab**: Opens the completion menu or cycles through options.
+    *   **Enter**: Selects the highlighted option from the menu. If no menu is open, it executes the command.
+*   **Clean Interface**: To keep the interface uncluttered, placeholders for user variables (like `${filename}`) are not suggested in the menu. Simply type your value, and autocomplete will resume for the next argument.
 
-### General Rules
-1.  **Configuration**: Must strictly follow `shoco.yaml` criteria.
-2.  **Architecture**: Based on `minha_cli_example_do_not_alter.py` reference, applying SOLID principles.
-3.  **Caching**:
-    -   If enabled, dynamic dicts are cached to `~/.shoco.json`.
-    -   Cache is imported at startup and exported after execution.
-4.  **Interactive Mode**: `shoco` provides an interactive shell with autocomplete.
+### Dynamic Data Caching
+To ensure speed, data fetched from external commands (Dynamic Dicts) is cached locally (default: `~/.shoco.json`). This cache is updated automatically, so your autocomplete remains fast even with complex data sources.
 
-### Autocomplete Rules
-1.  **Dynamic Evaluation**: Autocomplete is re-evaluated dynamically after every character typed or deleted.
-2.  **Navigation behavior** (Rule 13):
-    -   **Menu Visible**: `Tab` and `Enter` complete the selected word.
-    -   **Menu Hidden**: `Enter` executes the command.
-3.  **Argument Handling**:
-    -   **Resumption**: Autocomplete continues working for commands/arguments *after* an argument is used (Rule 4.19).
-    -   **Suppression** (Rule 4.18, 4.20): User variables (e.g., `${filename}`) are **NOT** suggested in the autocomplete menu. Only flags and static/dynamic values are suggested. Hint text for variables is suppressed to keep the UI clean.
-
-### Execution Logic
-1.  **Variable Resolution**:
-    -   When you select a value for a dynamic variable (e.g., `db1` for `$${database_servers.name}`), the application resolves all related keys (like host, port) from that distinct item in the list.
-    -   If you use the 2nd item's name, it ensures the 2nd item's host is used.
+### Context-Aware Resolution
+When you select an item from a dynamic list (e.g., a database name), `shoco` intelligently resolves all associated properties (like host IP, port, or user) for that specific item, ensuring your command executes with the correct context every time.
 
 ## Usage Example
 

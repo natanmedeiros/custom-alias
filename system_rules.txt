@@ -9,25 +9,22 @@ CLI Config:
     1.1.6 - Command starting with | are multiline commands
     1.1.7 - Every structure can use environment variables
     1.2 - Application
-    1.2.1 - Every criteria defined in the config file defined in the const CONFIG_FILE must be strictly followed
-    1.2.2 - minha_cli_example_do_not_alter.py must be used as a code reference and cannot be altered or used as dependency
-    1.2.3 - SOLID principles must be applied
-    1.2.4 - Code must be written in a way that is easy to read, understand, debug and test
-    1.2.5 - Create a new const to define if cache is enabled or not
-    1.2.6 - If cache is enabled, import json with the list of dynamic_dict from the file defined in the const
-    1.2.7 - If cache is enabled, export cache to the file defined in the const after command execution
-    1.2.8 - If cache is disabled, do not import or export cache
-    1.2.9 - Create a new const to define the path of the cache file with default value of ~/.shoco.json
-    1.2.10 - Create a new const to define the path of the config file with default value of ~/.shoco.yaml
-    1.2.11 - Must be possible use complete static commands and must be possible to execute shoco to enter interactive mode and use autocomplete to define commands
-    1.2.12 - When a command use a dynamic_dict or dict, it must be possible to use autocomplete from its values
-    1.2.13 - When an alias is defined with a user variable like ${filename}, it is possible to use it in command execution if calls it with same name, like ${filename}
-    1.2.14 - When an alias uses a dynamic_dict or dict option and its commands use another key from same dict or dynamic_dict, it must select the equivalent key from the same list position of dynamic_dict or dict
-    1.2.15 - example, take in consideration the dynamic_dict redis_servers with name and host, if use the name of dynamic_dict second item, when its commands calls another key like host, must be the host from the second item of dynamic_dict
-    1.2.16 - autocompletion must be evaluated for each command dynamicaly
-    1.2.17 - on every command end must evaluate autocompletion that come after command
-    1.2.18 - if delete character, must evaluate again autocompletion
-    1.2.19 - When showing autocompletion list, tab and enter must have same behavior, complete word, but if not showing any list, enter must execute command
+    1.2.1 - Code must be written in a way that is easy to read, understand, debug and test
+    1.2.2 - Create a new const to define if cache is enabled or not
+    1.2.3 - If cache is enabled, import json with the list of dynamic_dict from the file defined in the const
+    1.2.4 - If cache is enabled, export cache to the file defined in the const after command execution
+    1.2.5 - If cache is disabled, do not import or export cache
+    1.2.6 - Create a new const to define the path of the cache file with default value of ~/.shoco.json
+    1.2.7 - Create a new const to define the path of the config file with default value of ~/.shoco.yaml
+    1.2.8 - Must be possible use complete static commands and must be possible to execute shoco to enter interactive mode and use autocomplete to define commands
+    1.2.9 - When a command use a dynamic_dict or dict, it must be possible to use autocomplete from its values
+    1.2.10 - When an alias is defined with a user variable like ${filename}, it is possible to use it in command execution if calls it with same name, like ${filename}
+    1.2.11 - When an alias uses a dynamic_dict or dict option and its commands use another key from same dict or dynamic_dict, it must select the equivalent key from the same list position of dynamic_dict or dict
+    1.2.12 - example, take in consideration the dynamic_dict redis_servers with name and host, if use the name of dynamic_dict second item, when its commands calls another key like host, must be the host from the second item of dynamic_dict
+    1.2.13 - autocompletion must be evaluated for each command dynamicaly
+    1.2.14 - on every command end must evaluate autocompletion that come after command
+    1.2.15 - if delete character, must evaluate again autocompletion
+    1.2.16 - When showing autocompletion list, tab and enter must have same behavior, complete word, but if not showing any list, enter must execute command
     2 - Dict Structure
     2.1 - Static data accepted only
     2.2 - Cannot use another dict or dynamic_dict
