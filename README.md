@@ -1,5 +1,11 @@
 # Dynamic Alias (`dya`)
 
+![Wheel Build](https://img.shields.io/badge/Wheel-passing-brightgreen)
+![MacOS Build](https://img.shields.io/badge/MacOS-pending-yellow)
+![Deb Build](https://img.shields.io/badge/Deb-pending-yellow)
+![RPM Build](https://img.shields.io/badge/RPM-pending-yellow)
+
+
 Dynamic Alias is a powerful CLI application that allows users to create "aliases with superpowers". It transforms complex command-line interactions into simple, autocompletable shortcuts, leveraging dynamic data sources and structured configurations.
 
 ## Features
@@ -114,6 +120,18 @@ rpmbuild -ba packaging/rpm/dynamic-alias.spec
 
 # Install
 sudo dnf install ~/rpmbuild/RPMS/noarch/dynamic-alias-*.noarch.rpm
+```
+
+### MacOS
+#### Homebrew
+```bash
+brew install packaging/macos/homebrew/dynamic-alias.rb
+```
+
+#### PKG Installer
+To generate a `.pkg` installer (requires macOS):
+```bash
+./packaging/macos/scripts/build_pkg.sh
 ```
 
 ## Usage

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<installer-gui-script minSpecVersion="1">
+    <title>Dynamic Alias</title>
+    <options customize="never" require-scripts="false"/>
+    <domains enable_anywhere="true" enable_currentUserHome="true" enable_localSystem="true"/>
+    <build-option-list>
+        <build-option title="Dynamic Alias" description="Install Dynamic Alias CLI" name="com.natanmedeiros.dynamic-alias" auth="root" />
+    </build-option-list>
+    <choices-outline>
+        <line choice="default">
+            <line choice="com.natanmedeiros.dynamic-alias"/>
+        </line>
+    </choices-outline>
+    <choice id="default"/>
+    <choice id="com.natanmedeiros.dynamic-alias" visible="false">
+        <pkg-ref id="com.natanmedeiros.dynamic-alias"/>
+    </choice>
+    <pkg-ref id="com.natanmedeiros.dynamic-alias" version="0.1.0" onConclusion="none">extract.pkg</pkg-ref>
+</installer-gui-script>
