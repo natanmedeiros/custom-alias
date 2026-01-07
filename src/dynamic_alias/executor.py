@@ -10,21 +10,29 @@ class CommandExecutor:
     def __init__(self, data_resolver: DataResolver):
         self.resolver = data_resolver
 
-    def _match_alias_parts(self, alias_parts: List[str], input_parts: List[str]) -> tuple[bool, Dict[str, Any]]:
-        if len(input_parts) < len(alias_parts):
-            return False, {}
-
+    def _match_alias_parts(self, alias_parts: List[str], input_parts: List[str]) -> tuple[bool, Dict[str, Any], bool]:
+        # Rule 1.3.5: Allow partial match if help is requested. 
+        # We don't strictly enforce length check here if we find a help flag.
+        
         variables = {}
-        for alias_token, user_token in zip(alias_parts, input_parts):
+        
+        # Iterate over available input parts. If input is shorter, matched will be decided by length check at end,
+        # unless we find a help flag which shortcuts the process.
+        for i, (alias_token, user_token) in enumerate(zip(alias_parts, input_parts)):
             # 1. Check for app variable: $${source.key}
             app_var_match = re.match(r'\$\$\{(\w+)\.(\w+)\}', alias_token)
             if app_var_match:
+                # Rule 1.3.5: Partial match help for dynamic variables too
+                if user_token in ('-h', '--help'):
+                    return True, variables, True
+
+                source_name = app_var_match.group(1) 
                 source_name = app_var_match.group(1) 
                 key_name = app_var_match.group(2)    
                 
                 data_list = self.resolver.resolved_data.get(source_name)
                 if not data_list:
-                    return False, {}
+                    return False, {}, False
                 
                 found_item = None
                 for item in data_list:
@@ -35,36 +43,63 @@ class CommandExecutor:
                 if found_item:
                     variables[source_name] = found_item
                 else:
-                    return False, {} 
+                    return False, {}, False
                 continue
+
 
             # 2. Check for user variable: ${var}
             user_var_match = re.match(r'\$\{(\w+)\}', alias_token)
             if user_var_match:
+                # Rule 1.3.2: Can't use -h or --help as command args
+                # But Rule 1.3.5 says partial match should show help.
+                # So if we see help here, we treat it as "Partial Match Help Found" and stop.
+                if user_token in ('-h', '--help'):
+                    return True, variables, True
+                    
                 var_name = user_var_match.group(1)
                 variables[var_name] = user_token
                 continue
 
             # 3. Static match
             if alias_token != user_token:
-                return False, {}
+                # If mismatch, and user_token is help, maybe we should treat as help?
+                # "pg -h" where alias matches "pg".
+                # But here we are comparing tokens.
+                # If alias is "pg", user is "-h", mismatch.
+                # But if alias is "pg", user is "pg", match.
+                
+                # Rule 1.3.5 specifically says "when variables wasnt informed".
+                # It implies detecting help in place of a variable.
+                # If we mistype a static subcommand "pg stat -h" vs "pg status ...", 
+                # "stat" != "status". We shouldn't show help for "pg status".
+                return False, {}, False
         
-        return True, variables
+        # End of loop.
+        # If we had partial input (input shorter than alias), zip matched everything so far.
+        # But if we didn't find help flag, we must enforce length match.
+        if len(input_parts) < len(alias_parts):
+            return False, {}, False
+            
+        return True, variables, False
 
-    def find_command(self, args: List[str]) -> Optional[tuple[List[Union[CommandConfig, SubCommand, ArgConfig]], Dict[str, Any]]]:
+    def find_command(self, args: List[str]) -> Optional[tuple[List[Union[CommandConfig, SubCommand, ArgConfig]], Dict[str, Any], bool]]:
         for cmd in self.resolver.config.commands:
-            chain, variables = self._try_match(cmd, args)
+            chain, variables, is_help = self._try_match(cmd, args)
             if chain:
-                return chain, variables
+                return chain, variables, is_help
         return None
 
-    def _try_match(self, command_obj: Union[CommandConfig, SubCommand], args: List[str]) -> tuple[List[Union[CommandConfig, SubCommand, ArgConfig]], Dict]:
+    def _try_match(self, command_obj: Union[CommandConfig, SubCommand], args: List[str]) -> tuple[List[Union[CommandConfig, SubCommand, ArgConfig]], Dict, bool]:
         alias_parts = command_obj.alias.split()
         
         # 1. Match Command Alias
-        matched, variables = self._match_alias_parts(alias_parts, args[:len(alias_parts)])
+        matched, variables, is_help = self._match_alias_parts(alias_parts, args[:len(alias_parts)])
+        
+        if is_help:
+            return [command_obj], variables, True
+            
         if not matched:
-            return [], {}
+            return [], {}, False
         
         remaining_args = args[len(alias_parts):]
         current_chain = [command_obj]
@@ -74,7 +109,12 @@ class CommandExecutor:
             found_arg = False
             for arg_obj in command_obj.args:
                 arg_alias_parts = arg_obj.alias.split()
-                matched_arg, arg_vars = self._match_alias_parts(arg_alias_parts, remaining_args[:len(arg_alias_parts)])
+                matched_arg, arg_vars, arg_is_help = self._match_alias_parts(arg_alias_parts, remaining_args[:len(arg_alias_parts)])
+                
+                if arg_is_help:
+                    variables.update(arg_vars)
+                    current_chain.append(arg_obj)
+                    return current_chain, variables, True
                 
                 if matched_arg:
                     variables.update(arg_vars)
@@ -89,15 +129,19 @@ class CommandExecutor:
         # 3. Match Sub-commands
         if hasattr(command_obj, 'sub') and command_obj.sub and remaining_args:
             for sub in command_obj.sub:
-                sub_chain, sub_vars = self._try_match(sub, remaining_args)
+                sub_chain, sub_vars, sub_is_help = self._try_match(sub, remaining_args)
                 if sub_chain:
                     variables.update(sub_vars)
-                    return current_chain + sub_chain, variables
+                    return current_chain + sub_chain, variables, sub_is_help
         
+        # Check for help flag in remaining args
+        if remaining_args and remaining_args[0] in ('-h', '--help'):
+            return current_chain, variables, True
+            
         if not remaining_args:
-             return current_chain, variables
+             return current_chain, variables, False
              
-        return [], {}
+        return [], {}, False
 
     def execute(self, command_chain: List[Union[CommandConfig, SubCommand, ArgConfig]], variables: Dict[str, Any]):
         full_template = " ".join([obj.command for obj in command_chain])
@@ -135,3 +179,45 @@ class CommandExecutor:
             print(f"\nError: Command timed out after {timeout}s")
         except Exception as e:
             print(f"Execution error: {e}")
+
+    def print_help(self, command_chain: List[Union[CommandConfig, SubCommand, ArgConfig]]):
+        """Prints helper text for the matched command chain."""
+        print_formatted_text(HTML("\n<b><cyan>HELPER</cyan></b>\n"))
+        
+        found_help = False
+        for obj in command_chain:
+            if obj.helper:
+                found_help = True
+                print_formatted_text(HTML(f"<b><yellow>Command:</yellow></b> {obj.alias}"))
+                print(obj.helper.strip())
+                print("-" * 20)
+        
+        if not found_help:
+            print("No helper information available for this command.")
+
+    def print_global_help(self):
+        """Prints global helper text listing available dycts and commands."""
+        print_formatted_text(HTML("\n<b><cyan>DYNAMIC ALIAS HELPER</cyan></b>\n"))
+
+        if self.resolver.config.dicts:
+            print_formatted_text(HTML("<b><yellow>Dicts (Static):</yellow></b>"))
+            for name in self.resolver.config.dicts:
+                print(f"  - {name}")
+            print()
+
+        if self.resolver.config.dynamic_dicts:
+            print_formatted_text(HTML("<b><yellow>Dynamic Dicts:</yellow></b>"))
+            for name in self.resolver.config.dynamic_dicts:
+                 print(f"  - {name}")
+            print()
+        
+        if self.resolver.config.commands:
+            print_formatted_text(HTML("<b><yellow>Commands:</yellow></b>"))
+            for cmd in self.resolver.config.commands:
+                print_formatted_text(HTML(f"  <b>{cmd.name}</b> (alias: {cmd.alias})"))
+                if cmd.helper:
+                    for line in cmd.helper.strip().split('\n'):
+                        print(f"    {line}")
+                print("-" * 20)
+
+

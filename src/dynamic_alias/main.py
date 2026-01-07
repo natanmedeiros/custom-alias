@@ -36,11 +36,20 @@ def main():
 
     if len(sys.argv) > 1:
         args = sys.argv[1:]
+        
+        # Global help check
+        if len(args) == 1 and args[0] in ('-h', '--help'):
+            executor.print_global_help()
+            return
+
         result = executor.find_command(args)
         if result:
-            cmd, vars = result
-            executor.execute(cmd, vars)
-            cache.save()
+            cmd, vars, is_help = result
+            if is_help:
+                executor.print_help(cmd)
+            else:
+                executor.execute(cmd, vars)
+                cache.save()
         else:
             print("Error: Command not found.")
     else:

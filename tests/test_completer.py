@@ -21,7 +21,13 @@ class DummyCompleter:
     def get_completions(self, document, complete_event):
         pass
 sys.modules['prompt_toolkit.completion'].Completer = DummyCompleter
-sys.modules['prompt_toolkit.completion'].Completion = lambda text, start_position=0, display=None: (text, display)
+class MockCompletion:
+    def __init__(self, text, start_position=0, display=None):
+        self.text = text
+        self.start_position = start_position
+        self.display = display
+
+sys.modules['prompt_toolkit.completion'].Completion = MockCompletion
 
 # Add src to path to allow imports
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
@@ -78,7 +84,7 @@ class TestDynamicAliasCompleter(unittest.TestCase):
 
     def get_completions(self, text):
         doc = MockDocument(text)
-        return [c[0] for c in self.completer.get_completions(doc, None)]
+        return [c.text for c in self.completer.get_completions(doc, None)]
 
     def test_01_empty_input(self):
         """Test empty input suggestions (Roots)"""

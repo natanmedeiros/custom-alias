@@ -61,9 +61,16 @@ class InteractiveShell:
                 result = self.executor.find_command(parts)
                 
                 if result:
-                    cmd, vars = result
-                    self.executor.execute(cmd, vars)
-                    self.resolver.cache.save()
+                    cmd, vars, is_help = result
+                    if is_help:
+                        self.executor.print_help(cmd)
+                    else:
+                        self.executor.execute(cmd, vars)
+                        self.resolver.cache.save()
+                
+                elif len(parts) == 1 and parts[0] in ('-h', '--help'):
+                    self.executor.print_global_help()
+                    
                 else:
                     print("Invalid command.")
 

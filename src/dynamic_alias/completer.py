@@ -47,7 +47,7 @@ class DynamicAliasCompleter(Completer):
             for cmd in scope:
                 cmd_parts = cmd.alias.split()
                 if part_idx + len(cmd_parts) <= len(parts) - 1:
-                     is_match, _ = self.executor._match_alias_parts(cmd_parts, parts[part_idx:part_idx+len(cmd_parts)])
+                     is_match, _, _ = self.executor._match_alias_parts(cmd_parts, parts[part_idx:part_idx+len(cmd_parts)])
                      if is_match:
                          matched_cmd_node = cmd
                          part_idx += len(cmd_parts)
@@ -67,7 +67,7 @@ class DynamicAliasCompleter(Completer):
                     
                     arg_parts = arg.alias.split()
                     if part_idx + len(arg_parts) <= len(parts) - 1:
-                        is_match, _ = self.executor._match_alias_parts(arg_parts, parts[part_idx:part_idx+len(arg_parts)])
+                        is_match, _, _ = self.executor._match_alias_parts(arg_parts, parts[part_idx:part_idx+len(arg_parts)])
                         if is_match:
                              used_args_in_scope.add(arg.alias)
                              part_idx += len(arg_parts)
@@ -117,7 +117,7 @@ class DynamicAliasCompleter(Completer):
                     # Does this chunk match the start of arg_parts?
                     if len(consumed_chunk) < len(arg_parts):
                         # Potential match
-                        is_match, _ = self.executor._match_alias_parts(arg_parts[:len(consumed_chunk)], consumed_chunk)
+                        is_match, _, _ = self.executor._match_alias_parts(arg_parts[:len(consumed_chunk)], consumed_chunk)
                         if is_match:
                             # We are inside this arg.
                             # What is the expected next token?
@@ -151,7 +151,7 @@ class DynamicAliasCompleter(Completer):
                     
                 if len(consumed_chunk) < len(cmd_parts):
                     # Check if consumed chunk matches start of alias
-                    is_match, _ = self.executor._match_alias_parts(cmd_parts[:len(consumed_chunk)], consumed_chunk)
+                    is_match, _, _ = self.executor._match_alias_parts(cmd_parts[:len(consumed_chunk)], consumed_chunk)
                     if is_match:
                         # We are inside this command alias
                         next_token_idx = len(consumed_chunk)
