@@ -140,6 +140,20 @@ To generate a `.pkg` installer (requires macOS):
 ./packaging/macos/scripts/build_pkg.sh
 ```
 
+## Customizing the Command Name
+If you want to compile the application with a custom command name (e.g., `my_cli` instead of `dya`), you can modify the `pyproject.toml` file before building.
+
+1.  Open `pyproject.toml`.
+2.  Locate the `[project.scripts]` section.
+3.  Change the key from `dya` to your desired name:
+    ```toml
+    [project.scripts]
+    # Change 'dya' to 'my_cli'
+    my_cli = "dynamic_alias.main:main"
+    ```
+4.  Rebuild the project (`python -m build`) and reinstall (`pip install ./dist/dynamic_alias-x.x.x-py3-none-any.whl --force-reinstall`).
+
+
 ## Usage
 
 1.  **Start the shell**:
@@ -150,3 +164,37 @@ To generate a `.pkg` installer (requires macOS):
     ```text
     dya > pg db1 -o my_output.txt
     ```
+
+## Help System
+
+Dynamic Alias comes with a comprehensive built-in help system.
+
+### Global Help
+List all available commands and dictionaries by running:
+```bash
+dya -h
+# or
+dya --help
+```
+
+### Command Help
+Get detailed information about any command, subcommand, or argument by appending the help flag.
+```bash
+dya pg -h
+dya pg db1 -h
+```
+
+### Partial Match Support
+The help system is smart enough to detect help requests even when required variables are missing.
+- **Example**: `dya pg -h`
+- If `pg` is an alias for `pg $${database_servers.name}`, normally it requires a database name.
+- However, if `-h` is present, it will bypass validaton and show the helper for the `pg` command.
+
+This works for both **User Variables** (`${var}`) and **Dynamic Variables** (`$${source.key}`).
+
+### Interactive Mode
+The help system works seamlessly inside the interactive shell (`dya >`).
+```text
+dya > -h        # Shows global help
+dya > pg -h     # Shows command help
+```
