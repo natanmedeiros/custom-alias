@@ -12,7 +12,7 @@ from .cache import CacheManager
 from .resolver import DataResolver
 from .executor import CommandExecutor
 from .shell import InteractiveShell
-from .constants import CUSTOM_SHORTCUT
+from .constants import CUSTOM_SHORTCUT, CUSTOM_NAME
 
 # Constants
 CACHE_ENABLED = True
@@ -70,9 +70,53 @@ def main():
         default_json = f"~/.{CUSTOM_SHORTCUT}.json"
         final_cache_path = _resolve_path(path_options_json, default_json)
 
+
+    # Check for App Help
+    dya_help_flag = f"--{CUSTOM_SHORTCUT}-help"
+    
+    def print_dya_help():
+        print(f"\n{CUSTOM_NAME} Application Help")
+        print("-" * 30)
+        print("Usage Rules:")
+        print("  - Configuration is defined in YAML format.")
+        print("  - Supports static dicts, dynamic dicts (via shell commands), and commands.")
+        print("  - Commands can use variables from user input values ${var} or dicts/dynamic_dicts $${source.key} syntax.")
+        print("\nConfiguration Example:")
+        print("  ---")
+        print("  type: command")
+        print("  name: Hello World")
+        print("  alias: hello")
+        print("  command: echo 'Hello World'")
+        print("\nReserved Arguments:")
+        print(f"  -h, --help               : Display help for commands or global help")
+        print(f"  {config_flag} <path>      : Specify custom configuration file")
+        print(f"  {cache_flag} <path>       : Specify custom cache file")
+        print(f"  {dya_help_flag}               : Display this command line builder help")
+        print("\nDocumentation:")
+        print("  https://github.com/natanmedeiros/dynamic-alias?tab=readme-ov-file#documentation")
+        print()
+
+    if dya_help_flag in filtered_args:
+        print_dya_help()
+        return
+
     # 3. Load App
     loader = ConfigLoader(final_config_path)
-    loader.load()
+    try:
+        loader.load()
+    except FileNotFoundError as e:
+        # Rule 1.3.8: Handle missing config
+        # Check if help was requested
+        is_help_request = (len(filtered_args) == 1 and filtered_args[0] in ('-h', '--help'))
+        
+        if is_help_request:
+            print(f"Error: {e}")
+            print("\n" + "="*30 + "\n")
+            print_dya_help()
+            return
+        else:
+            print(f"Error: {e}")
+            sys.exit(1)
     
     cache = CacheManager(final_cache_path, CACHE_ENABLED)
     cache.load()

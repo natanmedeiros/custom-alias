@@ -1,5 +1,5 @@
 [custom-build]
-name = "Dynamic Alias2"
+name = "Dynamic Alias"
 shortcut = "dya"
 
 [build-system]

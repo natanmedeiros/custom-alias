@@ -36,8 +36,7 @@ class ConfigLoader:
 
     def load(self):
         if not os.path.exists(self.config_file):
-            print(f"Error: Config file not found at {self.config_file}")
-            sys.exit(1)
+            raise FileNotFoundError(f"Config file not found at {self.config_file}")
 
         # Use utf-8-sig to handle BOM if present (e.g. VS Code on Windows)
         with open(self.config_file, 'r', encoding='utf-8-sig') as f:

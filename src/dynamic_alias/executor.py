@@ -6,7 +6,7 @@ from prompt_toolkit.shortcuts import print_formatted_text
 from prompt_toolkit.formatted_text import HTML
 from .models import CommandConfig, SubCommand, ArgConfig
 from .resolver import DataResolver
-from .constants import CUSTOM_NAME
+from .constants import CUSTOM_NAME, CUSTOM_SHORTCUT
 
 class CommandExecutor:
     def __init__(self, data_resolver: DataResolver):
@@ -216,8 +216,14 @@ class CommandExecutor:
                 print(obj.helper.strip())
                 print("-" * 20)
         
+
         if not found_help:
             print("No helper information available for this command.")
+            
+        print()
+        print("Command Line Interface powered by Dynamic Alias")
+        print(f"To display {CUSTOM_SHORTCUT} helper use --{CUSTOM_SHORTCUT}-help")
+        print()
 
     def print_global_help(self):
         """Prints global helper text listing available dycts and commands."""
@@ -243,5 +249,10 @@ class CommandExecutor:
                     for line in cmd.helper.strip().split('\n'):
                         print(f"    {line}")
                 print("-" * 20)
+
+        print()
+        print("Command Line Interface powered by Dynamic Alias")
+        print(f"To display {CUSTOM_SHORTCUT} helper use --{CUSTOM_SHORTCUT}-help")
+        print()
 
 
