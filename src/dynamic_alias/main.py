@@ -100,23 +100,49 @@ def main():
         print_dya_help()
         return
 
+
     # 3. Load App
     loader = ConfigLoader(final_config_path)
     try:
         loader.load()
     except FileNotFoundError as e:
-        # Rule 1.3.8: Handle missing config
-        # Check if help was requested
-        is_help_request = (len(filtered_args) == 1 and filtered_args[0] in ('-h', '--help'))
-        
-        if is_help_request:
-            print(f"Error: {e}")
-            print("\n" + "="*30 + "\n")
-            print_dya_help()
-            return
+        # Check for bundled config (fallback)
+        bundled_config_path = os.path.join(os.path.dirname(__file__), f"{CUSTOM_SHORTCUT}.yaml")
+        if os.path.exists(bundled_config_path):
+            # Load bundled config
+            loader = ConfigLoader(bundled_config_path)
+            try:
+                loader.load()
+                # Bootstrap: Copy to user home if it doesn't exist
+                user_home_config = os.path.expanduser(f"~/.{CUSTOM_SHORTCUT}.yaml")
+                if not os.path.exists(user_home_config):
+                    try:
+                        import shutil
+                        shutil.copy(bundled_config_path, user_home_config)
+                        print(f"First run detected. Bundled configuration copied to {user_home_config}")
+                        # Update loader to point to the new home file? 
+                        # Requirements say "se possível faz cópia para ~/. ... caso tenha sido buildado com o yaml"
+                        # It doesn't explicitly say we must SWITCH to it immediately, but it makes sense to continue with the loaded one.
+                        # Since we loaded bundled, we proceed.
+                    except Exception as copy_err:
+                        print(f"Warning: Failed to copy bundled config to home: {copy_err}")
+                        
+            except Exception as bundled_err:
+                 print(f"Error loading bundled config: {bundled_err}")
+                 sys.exit(1)
         else:
-            print(f"Error: {e}")
-            sys.exit(1)
+            # Rule 1.3.8: Handle missing config (Original Logic)
+            # Check if help was requested
+            is_help_request = (len(filtered_args) == 1 and filtered_args[0] in ('-h', '--help'))
+            
+            if is_help_request:
+                print(f"Error: {e}")
+                print("\n" + "="*30 + "\n")
+                print_dya_help()
+                return
+            else:
+                print(f"Error: {e}")
+                sys.exit(1)
     
     cache = CacheManager(final_cache_path, CACHE_ENABLED)
     cache.load()

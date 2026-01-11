@@ -7,3 +7,6 @@ dya.yaml
 build/
 dist/
 *.egg-info/
+
+# Ignore bundled config in package source
+src/dynamic_alias/*.yaml

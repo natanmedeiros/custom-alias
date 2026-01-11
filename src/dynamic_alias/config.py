@@ -85,31 +85,6 @@ class ConfigLoader:
                              self.global_config.history_size = min(val, 1000)
                     else:
                         pass # Valid key, but not a config dict (ignoring)
-                
-                # Rule 1.1.10: "inside type config"
-                elif doc_type == 'config':
-                    styles = self.global_config.styles.copy()
-                    
-                    if 'style-completion' in doc:
-                        styles['completion-menu.completion'] = doc['style-completion']
-                    if 'style-completion-current' in doc:
-                         styles['completion-menu.completion.current'] = doc['style-completion-current']
-                    if 'style-scrollbar-background' in doc:
-                         styles['scrollbar.background'] = doc['style-scrollbar-background']
-                    if 'style-scrollbar-button' in doc:
-                         styles['scrollbar.button'] = doc['style-scrollbar-button']
-                    
-                    self.global_config.styles = styles
-                    
-                    if 'style-placeholder-color' in doc:
-                        self.global_config.placeholder_color = doc['style-placeholder-color']
-                    if 'style-placeholder-text' in doc:
-                        self.global_config.placeholder_text = doc['style-placeholder-text']
-                        
-                    if 'history-size' in doc:
-                         # Rule 1.2.19: Max 1000
-                         val = int(doc['history-size'])
-                         self.global_config.history_size = min(val, 1000)
                         
                 elif doc_type == 'dict':
                     name = doc['name']

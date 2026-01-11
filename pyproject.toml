@@ -38,3 +38,6 @@ dynamic = ["scripts"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+dynamic_alias = ["*.yaml"]

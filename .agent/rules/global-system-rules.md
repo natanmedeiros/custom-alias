@@ -15,8 +15,10 @@ These rules must be applied to every application file
 1.1.7 - Every structure can use environment variables
 1.1.8 - dya shortcut can be replace by customer defined shortcut defined in pyproject.toml custom-build shortcut
 1.1.9 - every place "dya" term in code must be replaced by $(customer-defined-shortcut) to be possible change it
-1.1.10 - shell style and placeholder must have default value, but if defined in config file inside type config must be used instead of default
+1.1.10 - shell style and placeholder must have default value, but if defined in config file inside config block must be used instead of default
 1.1.11 - Must validate input and remove BOM issue from user created config file
+1.1.12 - At build stage if there is config file defined, must gather together in build to enable custom build execution with default config, wihtout user defining config file.
+1.1.13 - if application was builded with config file attached, config file can be overwrited at execution time with flag --dya-config
 1.2 - Application
 1.2.1 - Code must be written in a way that is easy to read, understand, debug and test
 1.2.2 - Create a new const to define if cache is enabled or not and ttl size in seconds
