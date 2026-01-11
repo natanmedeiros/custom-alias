@@ -1,0 +1,167 @@
+# OCI Dynamic Alias Configuration
+# Features: dynamic_dict, dict, cache-ttl, timeout
+
+config:
+  history-size: 100
+  style-completion: "bg:#f80000 #ffffff"
+
+# =============================================================================
+# STATIC DICTS
+# =============================================================================
+
+---
+type: dict
+name: default_user
+data:
+  - name: postgres
+    user: ADMIN
+  - name: redis
+    user: default
+  - name: compute
+    user: opc
+
+---
+type: dict
+name: oci_config
+data:
+  - name: default
+    compartment_id: ocid1.compartment.oc1..exampleid
+
+# =============================================================================
+# DYNAMIC DICTS
+# =============================================================================
+
+---
+type: dynamic_dict
+name: compartments
+priority: 1
+timeout: 15
+cache-ttl: 3600
+command: |
+  oci iam compartment list \
+    --query 'data[].{id:id,name:name}' \
+    --output json
+mapping:
+  id: id
+  name: name
+
+---
+type: dynamic_dict
+name: compute
+priority: 2
+timeout: 30
+cache-ttl: 300
+command: |
+  oci compute instance list \
+    --compartment-id $${oci_config.default.compartment_id} \
+    --query 'data[].{"display-name":"display-name",id:id,"primary-private-ip":"primary-private-ip"}' \
+    --output json
+mapping:
+  name: display-name
+  id: id
+  ip: primary-private-ip
+
+---
+type: dynamic_dict
+name: autonomous_db
+priority: 2
+timeout: 30
+cache-ttl: 300
+command: |
+  oci db autonomous-database list \
+    --compartment-id $${oci_config.default.compartment_id} \
+    --query 'data[].{"display-name":"display-name","connection-url":"connection-urls.sql-dev-web-url"}' \
+    --output json
+mapping:
+  name: display-name
+  host: connection-url
+
+---
+type: dynamic_dict
+name: oci_cache
+priority: 2
+timeout: 30
+cache-ttl: 300
+command: |
+  oci redis redis-cluster list \
+    --compartment-id $${oci_config.default.compartment_id} \
+    --query 'data.items[].{"display-name":"display-name","primary-endpoint":"primary-endpoint-ip-address"}' \
+    --output json
+mapping:
+  name: display-name
+  host: primary-endpoint
+
+# =============================================================================
+# COMMANDS
+# =============================================================================
+
+---
+type: command
+name: OCI Session Authenticate
+alias: oci-auth $${compartments.name}
+command: |
+  oci session authenticate && 
+  echo "$${compartments.id}" > ~/.oci_last_compartment
+helper: |
+  Description:
+    Authenticate with OCI and save last compartment
+  
+  Usage:
+    dya oci-auth <compartment-name>
+  
+  Examples:
+    dya oci-auth production
+    dya oci-auth development
+
+---
+type: command
+name: OCI Compute SSH
+alias: oci-ssh $${compute.name}
+command: ssh $${default_user.compute.user}@$${compute.ip}
+timeout: 0
+helper: |
+  Description:
+    SSH into OCI Compute instance
+  
+  Usage:
+    dya oci-ssh <instance-name>
+  
+  Examples:
+    dya oci-ssh web-server-1
+    dya oci-ssh bastion
+
+---
+type: command
+name: OCI Autonomous Database
+alias: oci-pg $${autonomous_db.name}
+command: |
+  echo "Connect to: $${autonomous_db.host}"
+  echo "User: $${default_user.postgres.user}"
+timeout: 0
+helper: |
+  Description:
+    Show connection info for OCI Autonomous Database
+  
+  Usage:
+    dya oci-pg <db-name>
+  
+  Examples:
+    dya oci-pg analytics-adb
+    dya oci-pg reporting-db
+
+---
+type: command
+name: OCI Cache Redis
+alias: oci-cache $${oci_cache.name}
+command: redis-cli -h $${oci_cache.host}
+timeout: 0
+helper: |
+  Description:
+    Connect to OCI Cache with Redis
+  
+  Usage:
+    dya oci-cache <cluster-name>
+  
+  Examples:
+    dya oci-cache session-cache
+    dya oci-cache app-cache

@@ -1,0 +1,155 @@
+# Azure Dynamic Alias Configuration
+# Features: dynamic_dict, dict, cache-ttl, timeout
+
+config:
+  history-size: 100
+  style-completion: "bg:#0078d4 #ffffff"
+
+# =============================================================================
+# STATIC DICTS
+# =============================================================================
+
+---
+type: dict
+name: default_user
+data:
+  - name: postgres
+    user: postgres
+  - name: redis
+    user: default
+  - name: vm
+    user: azureuser
+
+# =============================================================================
+# DYNAMIC DICTS
+# =============================================================================
+
+---
+type: dynamic_dict
+name: subscriptions
+priority: 1
+timeout: 15
+cache-ttl: 3600
+command: |
+  az account list --query '[].{id:id,name:name}' --output json
+mapping:
+  id: id
+  name: name
+
+---
+type: dynamic_dict
+name: vms
+priority: 2
+timeout: 30
+cache-ttl: 300
+command: |
+  az vm list --show-details \
+    --query '[].{name:name,ip:publicIps,resourceGroup:resourceGroup}' \
+    --output json
+mapping:
+  name: name
+  ip: ip
+  resourceGroup: resourceGroup
+
+---
+type: dynamic_dict
+name: postgres
+priority: 2
+timeout: 30
+cache-ttl: 300
+command: |
+  az postgres flexible-server list \
+    --query '[].{name:name,host:fullyQualifiedDomainName}' \
+    --output json
+mapping:
+  name: name
+  host: host
+
+---
+type: dynamic_dict
+name: redis
+priority: 2
+timeout: 30
+cache-ttl: 300
+command: |
+  az redis list \
+    --query '[].{name:name,host:hostName,port:sslPort}' \
+    --output json
+mapping:
+  name: name
+  host: host
+  port: port
+
+# =============================================================================
+# COMMANDS
+# =============================================================================
+
+---
+type: command
+name: Azure Login
+alias: azlogin $${subscriptions.name}
+command: |
+  az login && 
+  az account set --subscription "$${subscriptions.id}" &&
+  echo "$${subscriptions.id}" > ~/.azure_last_subscription
+helper: |
+  Description:
+    Login to Azure and set active subscription
+  
+  Usage:
+    dya azlogin <subscription-name>
+  
+  Examples:
+    dya azlogin Production
+    dya azlogin Development
+
+---
+type: command
+name: VM SSH
+alias: azssh $${vms.name}
+command: ssh $${default_user.vm.user}@$${vms.ip}
+timeout: 0
+helper: |
+  Description:
+    SSH into Azure Virtual Machine
+  
+  Usage:
+    dya azssh <vm-name>
+  
+  Examples:
+    dya azssh web-server-01
+    dya azssh bastion-vm
+
+---
+type: command
+name: PostgreSQL Flexible Server
+alias: azpg $${postgres.name}
+command: psql -h $${postgres.host} -U $${default_user.postgres.user}
+timeout: 0
+helper: |
+  Description:
+    Connect to Azure Database for PostgreSQL
+  
+  Usage:
+    dya azpg <server-name>
+  
+  Examples:
+    dya azpg prod-postgres
+    dya azpg analytics-db
+
+---
+type: command
+name: Azure Cache for Redis
+alias: azcache $${redis.name}
+command: redis-cli -h $${redis.host} -p $${redis.port} --tls
+timeout: 0
+helper: |
+  Description:
+    Connect to Azure Cache for Redis (SSL)
+  
+  Usage:
+    dya azcache <cache-name>
+  
+  Examples:
+    dya azcache session-cache
+    dya azcache app-cache

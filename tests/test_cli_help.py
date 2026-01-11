@@ -14,7 +14,7 @@ def test_dya_help_flag(capsys):
     # Test --dya-help
     argv = ['script_name', f'--{CUSTOM_SHORTCUT}-help']
     
-    with patch('dynamic_alias.main.InteractiveShell') as MockShell:
+    with patch('dynamic_alias.shell.InteractiveShell') as MockShell:
         MockShell.return_value.run.return_value = None
         with patch('sys.argv', argv):
             try:
@@ -36,7 +36,7 @@ def test_global_help_footer(capsys):
     config_path = os.path.join(os.path.dirname(__file__), "dya.yaml")
     argv = ['script_name', '-h', f'--{CUSTOM_SHORTCUT}-config', config_path]
     
-    with patch('dynamic_alias.main.InteractiveShell') as MockShell:
+    with patch('dynamic_alias.shell.InteractiveShell') as MockShell:
         MockShell.return_value.run.return_value = None
         with patch('sys.argv', argv):
             try:
@@ -67,7 +67,7 @@ def test_missing_config_with_help(capsys):
             return real_exists(path)
         mock_exists.side_effect = exists_side_effect
         
-        with patch('dynamic_alias.main.InteractiveShell') as MockShell:
+        with patch('dynamic_alias.shell.InteractiveShell') as MockShell:
             MockShell.return_value.run.return_value = None
             with patch('sys.argv', argv):
                 try:
@@ -100,7 +100,7 @@ def test_missing_config_without_help(capsys):
             return real_exists(path)
         mock_exists.side_effect = exists_side_effect
         
-        with patch('dynamic_alias.main.InteractiveShell') as MockShell:
+        with patch('dynamic_alias.shell.InteractiveShell') as MockShell:
             MockShell.return_value.run.return_value = None
             with patch('sys.argv', argv):
                 with pytest.raises(SystemExit) as excinfo:

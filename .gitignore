@@ -1,7 +1,7 @@
 .venv
 __pycache__
 dya.json
-dya.yaml
+/dya.yaml
 
 # Build artifacts
 build/

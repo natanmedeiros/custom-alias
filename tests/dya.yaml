@@ -1,0 +1,80 @@
+config:
+  style-completion: "bg:#002222 #ffffff"
+  history-size: 5
+
+---
+type: dict
+name: static_envs
+data:
+  - name: dev
+    url: dev.internal
+  - name: prod
+    url: prod.internal
+
+---
+type: dynamic_dict
+name: dynamic_nodes
+priority: 1
+command: |
+  powershell -NoProfile -Command "Write-Output '[{\"id\": \"node-1\", \"ip\": \"10.0.0.1\"}, {\"id\": \"node-2\", \"ip\": \"10.0.0.2\"}]'"
+mapping:
+  name: id
+  ip: ip
+
+---
+type: dynamic_dict
+name: cached_items
+cache-ttl: 2
+command: |
+  powershell -NoProfile -Command "Write-Output '[{\"id\": \"item-1\"}]'"
+mapping:
+  name: id
+
+---
+type: command
+name: Simple Alias
+alias: simple
+command: echo simple
+
+---
+type: command
+name: Dict Consumer
+alias: consume $${static_envs.name}
+command: echo consuming $${static_envs.url}
+
+---
+type: command
+name: Dynamic Consumer
+alias: dyn $${dynamic_nodes.name}
+command: echo dyn $${dynamic_nodes.ip}
+
+---
+type: command
+name: Complex Structure
+alias: complex ${arg1}
+command: echo complex ${arg1}
+args:
+  - alias: --flag
+    command: --flag
+  - alias: --opt ${val}
+    command: --opt ${val}
+sub:
+  - alias: sub1
+    command: sub1
+    sub:
+      - alias: deep
+        command: deep
+
+---
+type: command
+name: Strict Alias
+strict: true
+alias: strict
+command: echo strict
+
+---
+type: command
+name: Timeout Cmd
+alias: timeout
+command: sleep 10
+timeout: 10
