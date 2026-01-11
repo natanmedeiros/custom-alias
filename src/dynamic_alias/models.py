@@ -14,7 +14,7 @@ class DynamicDictConfig:
     command: str
     mapping: Dict[str, str]
     priority: int = 1
-    timeout: int = DEFAULT_TIMEOUT
+    timeout: int = 10  # Rule 3.9: Default 10s
 
 @dataclass
 class ArgConfig:
@@ -38,4 +38,5 @@ class CommandConfig:
     helper: Optional[str] = None
     sub: List[SubCommand] = field(default_factory=list)
     args: List[ArgConfig] = field(default_factory=list)
-    timeout: int = DEFAULT_TIMEOUT
+    timeout: int = 0  # Rule 4.9: Default 0
+    strict: bool = False  # Strict mode logic

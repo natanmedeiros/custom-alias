@@ -103,15 +103,10 @@ mapping: # Mapping from command result keys to internal keys
 ---
 type: command
 name: # Command name
-alias: # Alias to trigger command, e.g. sync ${source} ${destination}
-command:  # Multi-line command when init with "|" or single line command when missing "|" that will be executed when calls alias, e.g. aws s3 sync --profile abc ${source} ${destination}
-helper: # Multi-line helper message when init with "|" or single line helper message when missing "|"
-
----
-type: command
-name: # Command name
+strict: # Default false. If false, user can input text to be concat at the end of matched generated command, e.g. alias is only "pg server" and produces "psql server", but user inputs "pg server --output teste", strict false accepts and concats at the and of command as "psql server --output teste", but when strict true, it will be rejected returning as invalid command with not recognized text between double quotes like "--output teste".
 alias: # Alias to trigger command, e.g. pg $
 command: # Multi-line command when init with "|" or single line command when missing "|" that will be executed when calls alias, e.g. psql -h $ -p $ -U $ -d $
+timeout: # Command execution timeout, default 0
 helper: # Multi-line helper message when init with "|" or single line helper message when missing "|"
 args: # Command args list
   - alias: # Alias to trigger command args, e.g. -o ${output_filename}

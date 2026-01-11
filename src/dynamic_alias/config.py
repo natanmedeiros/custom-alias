@@ -59,7 +59,7 @@ class ConfigLoader:
                         command=doc['command'],
                         mapping=doc['mapping'],
                         priority=doc.get('priority', 1),
-                        timeout=doc.get('timeout', DEFAULT_TIMEOUT)
+                        timeout=doc.get('timeout', 10) # Rule 3.9
                     )
 
                 elif doc['type'] == 'command':
@@ -82,7 +82,8 @@ class ConfigLoader:
             helper=doc.get('helper'),
             sub=subs,
             args=[self._parse_arg(a) for a in doc.get('args', [])],
-            timeout=doc.get('timeout', DEFAULT_TIMEOUT)
+            timeout=doc.get('timeout', 0), # Rule 4.9
+            strict=doc.get('strict', False)
         )
 
     def _parse_subcommand(self, doc: Dict) -> SubCommand:

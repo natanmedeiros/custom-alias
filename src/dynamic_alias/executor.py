@@ -1,10 +1,12 @@
 import re
 import subprocess
+import shlex
 from typing import Dict, List, Any, Optional, Union
 from prompt_toolkit.shortcuts import print_formatted_text
 from prompt_toolkit.formatted_text import HTML
-from .models import CommandConfig, SubCommand, ArgConfig, DEFAULT_TIMEOUT
+from .models import CommandConfig, SubCommand, ArgConfig
 from .resolver import DataResolver
+from .constants import CUSTOM_NAME
 
 class CommandExecutor:
     def __init__(self, data_resolver: DataResolver):
@@ -26,7 +28,6 @@ class CommandExecutor:
                 if user_token in ('-h', '--help'):
                     return True, variables, True
 
-                source_name = app_var_match.group(1) 
                 source_name = app_var_match.group(1) 
                 key_name = app_var_match.group(2)    
                 
@@ -62,44 +63,33 @@ class CommandExecutor:
 
             # 3. Static match
             if alias_token != user_token:
-                # If mismatch, and user_token is help, maybe we should treat as help?
-                # "pg -h" where alias matches "pg".
-                # But here we are comparing tokens.
-                # If alias is "pg", user is "-h", mismatch.
-                # But if alias is "pg", user is "pg", match.
-                
                 # Rule 1.3.5 specifically says "when variables wasnt informed".
-                # It implies detecting help in place of a variable.
-                # If we mistype a static subcommand "pg stat -h" vs "pg status ...", 
-                # "stat" != "status". We shouldn't show help for "pg status".
                 return False, {}, False
         
         # End of loop.
-        # If we had partial input (input shorter than alias), zip matched everything so far.
-        # But if we didn't find help flag, we must enforce length match.
         if len(input_parts) < len(alias_parts):
             return False, {}, False
             
         return True, variables, False
 
-    def find_command(self, args: List[str]) -> Optional[tuple[List[Union[CommandConfig, SubCommand, ArgConfig]], Dict[str, Any], bool]]:
+    def find_command(self, args: List[str]) -> Optional[tuple[List[Union[CommandConfig, SubCommand, ArgConfig]], Dict[str, Any], bool, List[str]]]:
         for cmd in self.resolver.config.commands:
-            chain, variables, is_help = self._try_match(cmd, args)
+            chain, variables, is_help, remaining = self._try_match(cmd, args)
             if chain:
-                return chain, variables, is_help
+                return chain, variables, is_help, remaining
         return None
 
-    def _try_match(self, command_obj: Union[CommandConfig, SubCommand], args: List[str]) -> tuple[List[Union[CommandConfig, SubCommand, ArgConfig]], Dict, bool]:
+    def _try_match(self, command_obj: Union[CommandConfig, SubCommand], args: List[str]) -> tuple[List[Union[CommandConfig, SubCommand, ArgConfig]], Dict, bool, List[str]]:
         alias_parts = command_obj.alias.split()
         
         # 1. Match Command Alias
         matched, variables, is_help = self._match_alias_parts(alias_parts, args[:len(alias_parts)])
         
         if is_help:
-            return [command_obj], variables, True
+            return [command_obj], variables, True, []
             
         if not matched:
-            return [], {}, False
+            return [], {}, False, []
         
         remaining_args = args[len(alias_parts):]
         current_chain = [command_obj]
@@ -114,7 +104,7 @@ class CommandExecutor:
                 if arg_is_help:
                     variables.update(arg_vars)
                     current_chain.append(arg_obj)
-                    return current_chain, variables, True
+                    return current_chain, variables, True, []
                 
                 if matched_arg:
                     variables.update(arg_vars)
@@ -129,21 +119,42 @@ class CommandExecutor:
         # 3. Match Sub-commands
         if hasattr(command_obj, 'sub') and command_obj.sub and remaining_args:
             for sub in command_obj.sub:
-                sub_chain, sub_vars, sub_is_help = self._try_match(sub, remaining_args)
+                sub_chain, sub_vars, sub_is_help, sub_remaining = self._try_match(sub, remaining_args)
                 if sub_chain:
                     variables.update(sub_vars)
-                    return current_chain + sub_chain, variables, sub_is_help
+                    return current_chain + sub_chain, variables, sub_is_help, sub_remaining
         
         # Check for help flag in remaining args
         if remaining_args and remaining_args[0] in ('-h', '--help'):
-            return current_chain, variables, True
+            return current_chain, variables, True, []
             
-        if not remaining_args:
-             return current_chain, variables, False
-             
-        return [], {}, False
+        # Success match
+        return current_chain, variables, False, remaining_args
 
-    def execute(self, command_chain: List[Union[CommandConfig, SubCommand, ArgConfig]], variables: Dict[str, Any]):
+    def execute(self, command_chain: List[Union[CommandConfig, SubCommand, ArgConfig]], variables: Dict[str, Any], remaining_args: List[str] = None):
+        if remaining_args is None:
+            remaining_args = []
+
+        # Strict mode check
+        root_cmd = command_chain[0]
+        # Only check strict if it's a CommandConfig (SubCommand doesn't define strict, it inherits logic or handled by root?)
+        # Models say CommandConfig has strict. SubCommand does not.
+        # But SubCommand is part of the chain.
+        # Rule says "strict: Default false... when strict true, it will be rejected".
+        # Strict applies to the COMMAND definition.
+        # If I am executing a subcommand, does the strictness of the parent apply?
+        # Usually strict sets the policy for the alias.
+        # If I reached a subcommand, effectively I matched alias -> sub -> sub.
+        # The strictness should probably check the root command config.
+        
+        is_strict = False
+        if isinstance(root_cmd, CommandConfig):
+            is_strict = root_cmd.strict
+            
+        if is_strict and remaining_args:
+             print_formatted_text(HTML(f"<b><red>Error:</red></b> Strict mode enabled. Unknown arguments: {' '.join(remaining_args)}"))
+             return
+
         full_template = " ".join([obj.command for obj in command_chain])
         
         def app_var_replace(match):
@@ -163,15 +174,24 @@ class CommandExecutor:
 
         cmd_resolved = re.sub(r'\$\{(\w+)\}', user_var_replace, cmd_resolved)
         
+        # Append remaining args if not strict
+        if remaining_args:
+            # Quote arguments to preserve spaces during shell concatenation
+            quoted_extras = " ".join(shlex.quote(arg) for arg in remaining_args)
+            cmd_resolved += " " + quoted_extras
+        
         print_formatted_text(HTML(f"<b><green>Running:</green></b> {cmd_resolved}"))
         print("-" * 30)
         
         try:
-            timeout = DEFAULT_TIMEOUT
+            timeout = 0
             if command_chain and hasattr(command_chain[0], 'timeout'):
                 timeout = command_chain[0].timeout
+            
+            # If timeout is 0, pass None to subprocess.run (means no timeout)
+            effective_timeout = timeout if timeout > 0 else None
                 
-            subprocess.run(cmd_resolved, shell=True, timeout=timeout)
+            subprocess.run(cmd_resolved, shell=True, timeout=effective_timeout)
 
         except KeyboardInterrupt:
             print("\nOperation cancelled.")
@@ -197,7 +217,7 @@ class CommandExecutor:
 
     def print_global_help(self):
         """Prints global helper text listing available dycts and commands."""
-        print_formatted_text(HTML("\n<b><cyan>DYNAMIC ALIAS HELPER</cyan></b>\n"))
+        print_formatted_text(HTML(f"\n<b><cyan>{CUSTOM_NAME} Helper</cyan></b>\n"))
 
         if self.resolver.config.dicts:
             print_formatted_text(HTML("<b><yellow>Dicts (Static):</yellow></b>"))
@@ -208,7 +228,7 @@ class CommandExecutor:
         if self.resolver.config.dynamic_dicts:
             print_formatted_text(HTML("<b><yellow>Dynamic Dicts:</yellow></b>"))
             for name in self.resolver.config.dynamic_dicts:
-                 print(f"  - {name}")
+                print(f"  - {name}")
             print()
         
         if self.resolver.config.commands:

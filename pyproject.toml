@@ -1,3 +1,7 @@
+[custom-build]
+name = "Dynamic Alias2"
+shortcut = "dya"
+
 [build-system]
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
@@ -20,9 +24,17 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
-
-[project.scripts]
-dya = "dynamic_alias.main:main"
+keywords = [
+    "CLI",
+    "Command Line",
+    "Alias",
+    "Dynamic",
+    "Powerful",
+    "Autocomplete",
+    "Shortcuts",
+    "Declarative",
+]
+dynamic = ["scripts"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

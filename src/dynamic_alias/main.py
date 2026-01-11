@@ -12,6 +12,7 @@ from .cache import CacheManager
 from .resolver import DataResolver
 from .executor import CommandExecutor
 from .shell import InteractiveShell
+from .constants import CUSTOM_SHORTCUT
 
 # Constants
 CACHE_ENABLED = True
@@ -19,37 +20,82 @@ CACHE_ENABLED = True
 def _resolve_path(options: List[str], default: str) -> str:
     return next((p for p in map(os.path.expanduser, options) if os.path.exists(p)), os.path.expanduser(default))
 
-CACHE_FILE = _resolve_path([".dya.json", "dya.json", "~/.dya.json", "~/dya.json"], "~/.dya.json")
-CONFIG_FILE = _resolve_path([".dya.yaml", "dya.yaml", "~/.dya.yaml", "~/dya.yaml"], "~/.dya.yaml")
-
 def main():
-    loader = ConfigLoader(CONFIG_FILE)
+    # 1. Parse app-level flags
+    args = sys.argv[1:]
+    
+    config_flag = f"--{CUSTOM_SHORTCUT}-config"
+    cache_flag = f"--{CUSTOM_SHORTCUT}-cache"
+    
+    config_file_override = None
+    cache_file_override = None
+    
+    filtered_args = []
+    
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg == config_flag:
+            if i + 1 < len(args):
+                config_file_override = args[i+1]
+                i += 2
+                continue
+            else:
+                print(f"Error: {config_flag} requires an argument")
+                sys.exit(1)
+        elif arg == cache_flag:
+            if i + 1 < len(args):
+                cache_file_override = args[i+1]
+                i += 2
+                continue
+            else:
+                print(f"Error: {cache_flag} requires an argument")
+                sys.exit(1)
+        else:
+            filtered_args.append(arg)
+            i += 1
+            
+    # 2. Resolve Paths
+    if config_file_override:
+        final_config_path = os.path.expanduser(config_file_override)
+    else:
+        path_options_yaml = [f".{CUSTOM_SHORTCUT}.yaml", f"{CUSTOM_SHORTCUT}.yaml", f"~/.{CUSTOM_SHORTCUT}.yaml", f"~/{CUSTOM_SHORTCUT}.yaml"]
+        default_yaml = f"~/.{CUSTOM_SHORTCUT}.yaml"
+        final_config_path = _resolve_path(path_options_yaml, default_yaml)
+
+    if cache_file_override:
+        final_cache_path = os.path.expanduser(cache_file_override)
+    else:
+        path_options_json = [f".{CUSTOM_SHORTCUT}.json", f"{CUSTOM_SHORTCUT}.json", f"~/.{CUSTOM_SHORTCUT}.json", f"~/{CUSTOM_SHORTCUT}.json"]
+        default_json = f"~/.{CUSTOM_SHORTCUT}.json"
+        final_cache_path = _resolve_path(path_options_json, default_json)
+
+    # 3. Load App
+    loader = ConfigLoader(final_config_path)
     loader.load()
     
-    cache = CacheManager(CACHE_FILE, CACHE_ENABLED)
+    cache = CacheManager(final_cache_path, CACHE_ENABLED)
     cache.load()
     
     resolver = DataResolver(loader, cache)
     resolver.resolve_all()
+    cache.save()
     
     executor = CommandExecutor(resolver)
 
-    if len(sys.argv) > 1:
-        args = sys.argv[1:]
-        
+    if filtered_args:
         # Global help check
-        if len(args) == 1 and args[0] in ('-h', '--help'):
+        if len(filtered_args) == 1 and filtered_args[0] in ('-h', '--help'):
             executor.print_global_help()
             return
 
-        result = executor.find_command(args)
+        result = executor.find_command(filtered_args)
         if result:
-            cmd, vars, is_help = result
+            cmd, vars, is_help, remaining = result
             if is_help:
                 executor.print_help(cmd)
             else:
-                executor.execute(cmd, vars)
-                cache.save()
+                executor.execute(cmd, vars, remaining)
         else:
             print("Error: Command not found.")
     else:
