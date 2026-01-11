@@ -31,9 +31,39 @@ def get_config_value(section, key, default):
 CUSTOM_SHORTCUT = get_config_value("custom-build", "shortcut", "dya")
 CUSTOM_NAME = get_config_value("custom-build", "name", "DYNAMIC ALIAS")
 
+from setuptools.command.build_py import build_py
+import shutil
+import os
+
+class CustomBuildPy(build_py):
+    def run(self):
+        # 1. Copy config
+        config_filename = f"{CUSTOM_SHORTCUT}.yaml"
+        src_config = config_filename
+        dst_config = os.path.join("src", "dynamic_alias", config_filename)
+        copied = False
+        
+        if os.path.exists(src_config):
+            print(f"Bundling config: {src_config} -> {dst_config}")
+            shutil.copy(src_config, dst_config)
+            copied = True
+            
+        try:
+            # 2. Run build
+            super().run()
+        finally:
+            # 3. Cleanup
+            if copied:
+                if os.path.exists(dst_config):
+                    print(f"Cleaning up bundled config: {dst_config}")
+                    os.remove(dst_config)
+
 # Setup entry points based on parsed config
 
 setup(
+    cmdclass={
+        'build_py': CustomBuildPy,
+    },
     entry_points={
         "console_scripts": [
             f"{CUSTOM_SHORTCUT} = dynamic_alias.main:main",

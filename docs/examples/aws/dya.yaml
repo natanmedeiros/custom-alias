@@ -1,0 +1,155 @@
+# AWS Dynamic Alias Configuration
+# Features: dynamic_dict, dict, cache-ttl, timeout, multiline commands
+
+config:
+  history-size: 100
+  style-completion: "bg:#ff9900 #000000"
+
+# =============================================================================
+# STATIC DICTS
+# =============================================================================
+
+---
+type: dict
+name: default_user
+data:
+  - name: postgres
+    user: postgres
+  - name: redis
+    user: default
+
+# =============================================================================
+# DYNAMIC DICTS
+# =============================================================================
+
+---
+type: dynamic_dict
+name: accounts
+priority: 1
+timeout: 5
+cache-ttl: 3600
+command: |
+  grep -E '^\[profile ' ~/.aws/config | 
+  sed 's/\[profile //' | sed 's/\]//' | 
+  jq -R -s 'split("\n") | map(select(length > 0)) | map({id: ., name: .})'
+mapping:
+  id: id
+  name: name
+
+---
+type: dynamic_dict
+name: ec2
+priority: 2
+timeout: 30
+cache-ttl: 300
+command: |
+  aws ec2 describe-instances \
+    --filters "Name=instance-state-name,Values=running" \
+    --query 'Reservations[].Instances[].{id:InstanceId,name:Tags[?Key==`Name`].Value|[0]}' \
+    --output json
+mapping:
+  name: name
+  id: id
+
+---
+type: dynamic_dict
+name: rds
+priority: 2
+timeout: 30
+cache-ttl: 300
+command: |
+  aws rds describe-db-instances \
+    --query 'DBInstances[?Engine==`postgres`].{name:DBInstanceIdentifier,host:Endpoint.Address,dbname:DBName}' \
+    --output json
+mapping:
+  name: name
+  host: host
+  dbname: dbname
+
+---
+type: dynamic_dict
+name: elasticache
+priority: 2
+timeout: 30
+cache-ttl: 300
+command: |
+  aws elasticache describe-cache-clusters \
+    --show-cache-node-info \
+    --query 'CacheClusters[?Engine==`redis`].{name:CacheClusterId,host:CacheNodes[0].Endpoint.Address}' \
+    --output json
+mapping:
+  name: name
+  host: host
+
+# =============================================================================
+# COMMANDS
+# =============================================================================
+
+---
+type: command
+name: AWS SSO Login
+alias: sso $${accounts.name}
+command: |
+  aws sso login --profile $${accounts.id} && 
+  echo "$${accounts.id}" > ~/.aws/last_profile
+helper: |
+  Description:
+    Login to AWS SSO profile and save as last used profile
+  
+  Usage:
+    dya sso <account-name>
+  
+  Examples:
+    dya sso production
+    dya sso staging
+
+---
+type: command
+name: SSM Session
+alias: ssm $${ec2.name}
+command: aws ssm start-session --target $${ec2.id}
+timeout: 0
+helper: |
+  Description:
+    Start SSM session to EC2 instance
+  
+  Usage:
+    dya ssm <instance-name>
+  
+  Examples:
+    dya ssm prod-web-server
+    dya ssm bastion
+
+---
+type: command
+name: PostgreSQL RDS
+alias: pg $${rds.name}
+command: psql -h $${rds.host} -U $${default_user.postgres.user} -d $${rds.dbname}
+timeout: 0
+helper: |
+  Description:
+    Connect to PostgreSQL RDS instance
+  
+  Usage:
+    dya pg <rds-name>
+  
+  Examples:
+    dya pg production-db
+    dya pg analytics
+
+---
+type: command
+name: ElastiCache Redis
+alias: cache $${elasticache.name}
+command: redis-cli -h $${elasticache.host}
+timeout: 0
+helper: |
+  Description:
+    Connect to ElastiCache Redis cluster
+  
+  Usage:
+    dya cache <cluster-name>
+  
+  Examples:
+    dya cache session-cache
+    dya cache rate-limiter

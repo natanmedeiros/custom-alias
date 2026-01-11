@@ -1,0 +1,153 @@
+# GCP Dynamic Alias Configuration
+# Features: dynamic_dict, dict, cache-ttl, timeout
+
+config:
+  history-size: 100
+  style-completion: "bg:#4285f4 #ffffff"
+
+# =============================================================================
+# STATIC DICTS
+# =============================================================================
+
+---
+type: dict
+name: default_user
+data:
+  - name: postgres
+    user: postgres
+  - name: redis
+    user: default
+
+# =============================================================================
+# DYNAMIC DICTS
+# =============================================================================
+
+---
+type: dynamic_dict
+name: projects
+priority: 1
+timeout: 15
+cache-ttl: 3600
+command: |
+  gcloud projects list --format='json(projectId,name)'
+mapping:
+  id: projectId
+  name: name
+
+---
+type: dynamic_dict
+name: compute
+priority: 2
+timeout: 30
+cache-ttl: 300
+command: |
+  gcloud compute instances list \
+    --format='json(name,zone,networkInterfaces[0].networkIP)'
+mapping:
+  name: name
+  zone: zone
+  ip: networkInterfaces[0].networkIP
+
+---
+type: dynamic_dict
+name: cloudsql
+priority: 2
+timeout: 30
+cache-ttl: 300
+command: |
+  gcloud sql instances list \
+    --format='json(name,ipAddresses[0].ipAddress,databaseVersion,region)'
+mapping:
+  name: name
+  host: ipAddresses[0].ipAddress
+  region: region
+
+---
+type: dynamic_dict
+name: memorystore
+priority: 2
+timeout: 30
+cache-ttl: 300
+command: |
+  gcloud redis instances list \
+    --region=us-central1 \
+    --format='json(name,host,port)'
+mapping:
+  name: name
+  host: host
+  port: port
+
+# =============================================================================
+# COMMANDS
+# =============================================================================
+
+---
+type: command
+name: GCP Auth Login
+alias: gauth $${projects.name}
+command: |
+  gcloud auth login && 
+  gcloud config set project $${projects.id} &&
+  echo "$${projects.id}" > ~/.gcloud_last_project
+helper: |
+  Description:
+    Authenticate with GCP and set active project
+  
+  Usage:
+    dya gauth <project-name>
+  
+  Examples:
+    dya gauth my-production-project
+    dya gauth staging-env
+
+---
+type: command
+name: Compute SSH
+alias: gssh $${compute.name}
+command: gcloud compute ssh $${compute.name} --zone=$${compute.zone}
+timeout: 0
+helper: |
+  Description:
+    SSH into Compute Engine instance
+  
+  Usage:
+    dya gssh <instance-name>
+  
+  Examples:
+    dya gssh web-server-1
+    dya gssh bastion
+
+---
+type: command
+name: Cloud SQL PostgreSQL
+alias: gpg $${cloudsql.name}
+command: |
+  gcloud sql connect $${cloudsql.name} --user=$${default_user.postgres.user}
+timeout: 0
+helper: |
+  Description:
+    Connect to Cloud SQL PostgreSQL instance
+  
+  Usage:
+    dya gpg <instance-name>
+  
+  Examples:
+    dya gpg production-db
+    dya gpg analytics-sql
+
+---
+type: command
+name: Memorystore Redis
+alias: gcache $${memorystore.name}
+command: redis-cli -h $${memorystore.host} -p $${memorystore.port}
+timeout: 0
+helper: |
+  Description:
+    Connect to Memorystore Redis instance
+  
+  Usage:
+    dya gcache <instance-name>
+  
+  Examples:
+    dya gcache session-store
+    dya gcache cache-cluster

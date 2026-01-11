@@ -81,16 +81,18 @@ def test_help_flag_blocked_as_variable(mock_resolver):
     assert is_help is True 
 
 def test_print_global_help_structure(mock_resolver):
-    executor = CommandExecutor(mock_resolver)
+    # Since prompt_toolkit is mocked globally, we verify execution without errors
+    # and verify that print() is called for dict/command names
     
-    with patch('dynamic_alias.executor.print_formatted_text') as mock_print:
-        with patch('builtins.print') as mock_builtin_print:
-            executor.print_global_help()
-            
-            # Verify print_formatted_text was called (for header and sections)
-            assert mock_print.called
-            # Verify builtin print was called (for dict names, command names)
-            assert mock_builtin_print.called
+    with patch('builtins.print') as mock_print:
+        executor = CommandExecutor(mock_resolver)
+        executor.print_global_help()
+        
+        # Verify print was called (for dict names, command info, footer)
+        assert mock_print.called
+        # Check that at least some expected content was printed
+        call_args_str = str(mock_print.call_args_list)
+        assert 'static_envs' in call_args_str or 'Dicts' in call_args_str or 'Commands' in call_args_str
 
 def test_interactive_shell_global_help(mock_resolver):
     executor = MagicMock() 

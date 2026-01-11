@@ -1,9 +1,12 @@
 .venv
 __pycache__
 dya.json
-dya.yaml
+/dya.yaml
 
 # Build artifacts
 build/
 dist/
 *.egg-info/
+
+# Ignore bundled config in package source
+src/dynamic_alias/*.yaml

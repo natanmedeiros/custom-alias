@@ -100,12 +100,61 @@ def main():
         print_dya_help()
         return
 
-    # 3. Load App
+
+
+    # 3. Bundled Config Enforcement (SHA Check)
+    # Rules 1.1.12, 1.1.13 + SHA Enforcement
+    bundled_config_path = os.path.join(os.path.dirname(__file__), f"{CUSTOM_SHORTCUT}.yaml")
+    user_home_config = os.path.expanduser(f"~/.{CUSTOM_SHORTCUT}.yaml")
+    
+    if os.path.exists(bundled_config_path):
+        should_copy = False
+        reason = ""
+        
+        if not os.path.exists(user_home_config):
+            should_copy = True
+            reason = "Missing user configuration"
+        else:
+            # Compare Checksums
+            import hashlib
+            
+            def get_file_hash(filepath):
+                hasher = hashlib.sha256()
+                with open(filepath, 'rb') as f:
+                    # Safety break logic for tests mocking open with infinite read
+                    max_chunks = 100000 # ~800MB limit should be enough for config
+                    chunks_read = 0
+                    while chunk := f.read(8192):
+                        hasher.update(chunk)
+                        chunks_read += 1
+                        if chunks_read > max_chunks:
+                            raise RuntimeError(f"Config file too large or infinite read (chunks={chunks_read})")
+                return hasher.hexdigest()
+            
+            try:
+                bundled_hash = get_file_hash(bundled_config_path)
+                user_hash = get_file_hash(user_home_config)
+                
+                if bundled_hash != user_hash:
+                    should_copy = True
+                    reason = "Configuration mismatch (SHA variation)"
+            except Exception as hash_err:
+                 print(f"Warning: Failed to verify configuration integrity: {hash_err}")
+
+        if should_copy:
+            try:
+                import shutil
+                shutil.copy(bundled_config_path, user_home_config)
+                print(f"[{CUSTOM_NAME}] Updating default configuration from bundle: {reason}")
+            except Exception as copy_err:
+                print(f"Warning: Failed to update default configuration: {copy_err}")
+
+    # 4. Load App
     loader = ConfigLoader(final_config_path)
     try:
         loader.load()
     except FileNotFoundError as e:
-        # Rule 1.3.8: Handle missing config
+         # Rule 1.3.8: Handle missing config (Original Logic)
         # Check if help was requested
         is_help_request = (len(filtered_args) == 1 and filtered_args[0] in ('-h', '--help'))
         
