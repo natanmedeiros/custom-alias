@@ -55,12 +55,11 @@ command: echo test
             os.remove(tmp_path)
 
     def test_explicit_type_config(self):
-        # Unit test for 'type: config' block pattern
+        # Unit test for 'config:' block pattern (declarative metadata style)
         with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.yaml') as tmp:
-            tmp.write("""---
-type: config
-style-completion: "bg:custom_bg custom_fg"
-history-size: 10
+            tmp.write("""config:
+  style-completion: "bg:custom_bg custom_fg"
+  history-size: 10
 
 ---
 type: command

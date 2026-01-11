@@ -14,14 +14,9 @@ Instead of using the default `dya` command, you can build a CLI with your compan
 
 ```toml
 [project]
-name = "acme-infra"
-version = "1.0.0"
-description = "ACME Infrastructure CLI"
+version = "1.2.0"
 
-[project.scripts]
-infra = "dynamic_alias.main:main"
-
-[tool.custom-build]
+[custom-build]
 name = "ACME Infrastructure Tool"
 shortcut = "infra"
 ```
@@ -92,3 +87,18 @@ infra --infra-cache /path/to/cache.json
 2. **Discoverability** - `-h` shows your company name
 3. **Distribution** - Package as deb/rpm/wheel for easy installation
 4. **Customization** - Style matches company theme
+
+## Bundled Configuration (Rules 1.1.12 & 1.1.13)
+
+When building a CLI with Dynamic Alias, you can include a default configuration file (`dya.yaml` or `{shortcut}.yaml`).
+
+- **Automatic Inclusion**: If `{shortcut}.yaml` exists in the project root during build, it is automatically bundled into the package.
+- **Strict Synchronization**:
+    - The CLI synchronizes the user's default configuration (`~/.{shortcut}.yaml`) with the bundled version.
+    - On every execution, the system compares the SHA checksum of the installed user config with the bundled config.
+    - **Overwrite Policy**: If they differ (e.g., manual edit or package update), the bundled version **overwrites** the user file.
+    - This ensures the CLI always behaves as defined by the package version.
+- **Customization**:
+    - To use a custom configuration without being overwritten, you must use the flag `--{shortcut}-config <path>`.
+    - Example: `infra --infra-config my_custom_config.yaml`
+- **Updates**: Updating the package (`pip install --upgrade`) will bring a new bundled config, which will automatically update the user's default config on the next run.
