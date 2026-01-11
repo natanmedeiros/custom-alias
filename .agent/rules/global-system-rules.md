@@ -52,6 +52,8 @@ These rules must be applied to every application file
 1.3.4 - helper should work on both modes, interactive and non-interactive
 1.3.5 - helper must consider partial match commands when variables wasnt informed, e.g. for "pg $${database_servers.name}" the partial command helper "pg -h" or "pg --help" should work and display pg command helper
 1.3.6 - helper header must display customer defined name placed in pyproject.toml custom-build name
+1.3.7 - At the end of every -h/--help execution must contains a footer like "[divisor]\nCommand Line Interface powered by Dynamic Alias \nTo display dya helper use --dya-help"
+1.3.8 - If config file not exists, when call -h/--help, display an exception with config requirement, put a divisorm break line and show same content as --dya-help execution
 2 - Dict Structure
 2.1 - Static data accepted only
 2.2 - Cannot use another dict or dynamic_dict
