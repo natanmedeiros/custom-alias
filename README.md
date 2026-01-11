@@ -1,200 +1,79 @@
-# Dynamic Alias (`dya`)
+# Dynamic Alias (dya)
 
-![Wheel Build](https://img.shields.io/badge/Wheel-passing-brightgreen)
-![MacOS Build](https://img.shields.io/badge/MacOS-pending-yellow)
-![Deb Build](https://img.shields.io/badge/Deb-pending-yellow)
-![RPM Build](https://img.shields.io/badge/RPM-pending-yellow)
+A declarative CLI builder that transforms complex command-line workflows into simple, memorable aliases with smart autocompletion.
 
+## Why Dynamic Alias?
 
-> [!CAUTION]
-> **UNDER DEVELOPMENT**
->
-> This project is currently in **active development** and is **not ready for production use**.
-> Although many features are functional, breaking changes may occur at any time.
+Modern infrastructure professionals juggle dozens of CLI tools daily—AWS, GCP, Azure, Kubernetes, databases, and more. Each tool has its own syntax, flags, and resource identifiers. **Dynamic Alias** lets you define once, use everywhere:
 
-Dynamic Alias is a powerful CLI application that allows users to create "aliases with superpowers". It transforms complex command-line interactions into simple, autocompletable shortcuts, leveraging dynamic data sources and structured configurations.
+```bash
+# Instead of remembering:
+aws ssm start-session --target i-0abc123def456 --region us-east-1
 
-## Features
-
--   **Superpowered Aliases**: Define aliases that map to complex commands.
--   **Dynamic Data**: Use output from external commands (e.g., AWS, Redis) as data sources for your aliases.
--   **Smart Autocomplete**: Context-aware autocompletion for commands, subcommands, arguments, and dynamic data values.
--   **Variable Support**:
-    -   **User Input Variables** (`${var}`): Placeholders that you fill in during execution.
-    -   **Application Variables** (`$${source.key}`): Values automatically populated from your dynamic data sources.
-    -   **Environment Variables** (`$${env.VAR}`): Integration with system environment variables.
--   **Interactive Shell**: A robust shell environment (`dya >`) with menu-based completion.
-
-## System Requirements
-
--   Python 3.8+
--   Configuration file: `dya.yaml` (default at `~/.dya.yaml` or current directory)
-
-## Configuration (`dya.yaml`)
-
-The application is driven by a YAML configuration file that defines three main structures: **Dict**, **Dynamic Dict**, and **Command**.
-
-### 1. Variables Syntax
--   `$${variable}`: Application variable (from Dynamic Dicts or Environment).
--   `${variable}`: User input variable (you type the value).
-
-### 2. Dict (Static Data)
-Defines static key-value lists.
-```yaml
----
-type: dict
-name: application_servers
-data:
-  - name: app1
-    host: 192.168.1.10
-    port: 8080
+# Just type:
+dya ssm prod-web-server
 ```
 
-### 3. Dynamic Dict (Dynamic Data)
-Fetches data by executing a shell command. The output must be JSON.
-```yaml
----
-type: dynamic_dict
-name: redis_servers
-priority: 1
-command: |
-  aws elasticache describe-cache-clusters --output json ...
-mapping:
-  name: CacheClusterId
-  host: Endpoint.Address
-```
+## Quick Start
 
-### 4. Command (The Alias)
-Defines the executable command, its structure, and arguments.
+```bash
+# Install
+pip install dynamic-alias
 
-```yaml
+# Create ~/.dya.yaml
+echo "
+config:
+  history-size: 100
+
 ---
 type: command
-name: PostgreSQL Client
-alias: pg $${database_servers.name} # Uses dynamic variable
-command: psql -h $${database_servers.host} ...
-helper: |
-    Connects to a database.
-args:
-  - alias: -o ${filename} # Argument with user variable
-    command: -o ${filename}
-    helper: Output to file
-sub:
-  - alias: file ${filename} # Subcommand
-    command: -f ${filename}
+name: Hello World
+alias: hello
+command: echo 'Hello from Dynamic Alias!'
+" > ~/.dya.yaml
+
+# Run
+dya hello
 ```
 
-## Installation and Building
+## Documentation
 
-### Python Wheel
-To build and install the package via pip:
+| Topic | Description |
+|-------|-------------|
+| [Getting Started](docs/getting-started.md) | Installation, first config, running |
+| [Configuration](docs/configuration.md) | YAML structure, config block, styles |
+| [Static Dicts](docs/dicts.md) | Defining static data sources |
+| [Dynamic Dicts](docs/dynamic-dicts.md) | Fetching data from external commands, caching, TTL |
+| [Commands](docs/commands.md) | Aliases, subcommands, arguments |
+| [Features](docs/features.md) | Strict mode, timeout, history |
+| [Interactive Mode](docs/interactive-mode.md) | Shell, autocomplete, history navigation |
 
-```bash
-# Build
-python -m build
+## Examples
 
-# Install (Local)
-pip install .
-```
+Real-world configurations for cloud providers:
 
-### Debian/Ubuntu (APT)
-To build a `.deb` package:
+| Example | Description |
+|---------|-------------|
+| [AWS](docs/examples/aws/) | SSO login, SSM sessions, RDS PostgreSQL, ElastiCache |
+| [GCP](docs/examples/gcp/) | gcloud auth, Compute SSH, Cloud SQL, Memorystore |
+| [Azure](docs/examples/azure/) | az login, VM SSH, PostgreSQL, Redis Cache |
+| [OCI](docs/examples/oci/) | oci session, Compute SSH, Autonomous DB, Redis |
+| [Custom CLI](docs/examples/custom-cli/) | Building your own branded CLI |
 
-```bash
-# Requires stdeb
-pip install stdeb fakeroot
+## Use Cases
 
-# Build
-python3 setup.py --command-packages=stdeb.command bdist_deb
+### Infrastructure Professionals
+DBAs, SREs, DBREs, and DevOps engineers who work with multiple tools and dozens of resources daily. Stop memorizing instance IDs—let Dynamic Alias remember them for you.
 
-# Install
-sudo dpkg -i deb_dist/python3-dynamic-alias_*.deb
-# or
-sudo apt install ./deb_dist/python3-dynamic-alias_*.deb
-```
+### Companies Building Internal CLIs
+Create a declarative, customizable CLI for your organization. Define your company's resources in YAML and distribute a branded tool to your teams.
 
-### Fedora/RHEL (DNF/RPM)
-To build an `.rpm` package:
+## Roadmap
 
-```bash
-# Copy source to rpmbuild SOURCES
-python setup.py sdist
-cp dist/dynamic-alias-0.1.0.tar.gz ~/rpmbuild/SOURCES/
+- [ ] **OS Package Publishing** - Debian (.deb), RPM, Windows installer
+- [ ] **Python Package Publication** - PyPI release
+- [ ] **Homebrew Publication** - macOS/Linux via Homebrew
 
-# Build
-rpmbuild -ba packaging/rpm/dynamic-alias.spec
+## License
 
-# Install
-sudo dnf install ~/rpmbuild/RPMS/noarch/dynamic-alias-*.noarch.rpm
-```
-
-### MacOS
-#### Homebrew
-```bash
-brew install packaging/macos/homebrew/dynamic-alias.rb
-```
-
-#### PKG Installer
-To generate a `.pkg` installer (requires macOS):
-```bash
-./packaging/macos/scripts/build_pkg.sh
-```
-
-## Customizing the Command Name
-If you want to compile the application with a custom command name (e.g., `my_cli` instead of `dya`), you can modify the `pyproject.toml` file before building.
-
-1.  Open `pyproject.toml`.
-2.  Locate the `[project.scripts]` section.
-3.  Change the key from `dya` to your desired name:
-    ```toml
-    [project.scripts]
-    # Change 'dya' to 'my_cli'
-    my_cli = "dynamic_alias.main:main"
-    ```
-4.  Rebuild the project (`python -m build`) and reinstall (`pip install ./dist/dynamic_alias-x.x.x-py3-none-any.whl --force-reinstall`).
-
-
-## Usage
-
-1.  **Start the shell**:
-    ```bash
-    dya
-    ```
-2.  **Type a command**:
-    ```text
-    dya > pg db1 -o my_output.txt
-    ```
-
-## Help System
-
-Dynamic Alias comes with a comprehensive built-in help system.
-
-### Global Help
-List all available commands and dictionaries by running:
-```bash
-dya -h
-# or
-dya --help
-```
-
-### Command Help
-Get detailed information about any command, subcommand, or argument by appending the help flag.
-```bash
-dya pg -h
-dya pg db1 -h
-```
-
-### Partial Match Support
-The help system is smart enough to detect help requests even when required variables are missing.
-- **Example**: `dya pg -h`
-- If `pg` is an alias for `pg $${database_servers.name}`, normally it requires a database name.
-- However, if `-h` is present, it will bypass validaton and show the helper for the `pg` command.
-
-This works for both **User Variables** (`${var}`) and **Dynamic Variables** (`$${source.key}`).
-
-### Interactive Mode
-The help system works seamlessly inside the interactive shell (`dya >`).
-```text
-dya > -h        # Shows global help
-dya > pg -h     # Shows command help
-```
+MIT License - See [LICENSE](LICENSE) for details.

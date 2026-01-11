@@ -1,0 +1,144 @@
+# ACME Infrastructure Tool Configuration
+# Custom CLI Example - File is named infra.yaml (matches shortcut in pyproject.toml)
+#
+# pyproject.toml configuration:
+# [tool.custom-build]
+# name = "ACME Infrastructure Tool"
+# shortcut = "infra"
+
+config:
+  history-size: 100
+  style-completion: "bg:#6b21a8 #ffffff"
+  style-completion-current: "bg:#9333ea #ffffff"
+  style-placeholder-text: "(type command or press tab)"
+
+# =============================================================================
+# STATIC DICTS - Company Resources
+# =============================================================================
+
+---
+type: dict
+name: environments
+data:
+  - name: prod
+    region: us-east-1
+    account: 123456789012
+  - name: staging
+    region: us-west-2
+    account: 234567890123
+  - name: dev
+    region: eu-west-1
+    account: 345678901234
+
+---
+type: dict
+name: teams
+data:
+  - name: platform
+    slack: "#platform-alerts"
+    oncall: platform@acme.com
+  - name: data
+    slack: "#data-alerts"
+    oncall: data@acme.com
+
+# =============================================================================
+# DYNAMIC DICTS - Internal Services
+# =============================================================================
+
+---
+type: dynamic_dict
+name: services
+priority: 1
+timeout: 10
+cache-ttl: 600
+command: |
+  curl -s https://internal-api.acme.com/services | 
+  jq '[.[] | {name: .name, url: .endpoint, status: .status}]'
+mapping:
+  name: name
+  url: url
+  status: status
+
+# =============================================================================
+# COMMANDS - ACME Operations
+# =============================================================================
+
+---
+type: command
+name: Environment Switch
+alias: env $${environments.name}
+command: |
+  echo "Switching to $${environments.name} environment"
+  export AWS_PROFILE=$${environments.name}
+  export AWS_REGION=$${environments.region}
+strict: true
+helper: |
+  Description:
+    Switch to ACME environment
+  
+  Usage:
+    infra env <environment>
+  
+  Environments:
+    prod     - Production (us-east-1)
+    staging  - Staging (us-west-2)
+    dev      - Development (eu-west-1)
+
+---
+type: command
+name: Service Status
+alias: status $${services.name}
+command: curl -s $${services.url}/health | jq
+helper: |
+  Description:
+    Check health of internal service
+  
+  Usage:
+    infra status <service-name>
+
+---
+type: command
+name: Alert Team
+alias: alert $${teams.name}
+command: |
+  echo "Sending alert to $${teams.slack}"
+  curl -X POST -H 'Content-type: application/json' \
+    --data '{"text":"Alert from ACME CLI"}' \
+    $${teams.slack}
+helper: |
+  Description:
+    Send alert to team Slack channel
+  
+  Usage:
+    infra alert <team-name>
+
+---
+type: command
+name: Deploy
+alias: deploy
+command: ./scripts/deploy.sh
+sub:
+  - alias: $${environments.name}
+    command: --env $${environments.name}
+    helper: Deploy to specific environment
+args:
+  - alias: --dry-run
+    command: --dry-run
+    helper: Preview without deploying
+  - alias: --force
+    command: --force
+    helper: Force deploy (skip confirmations)
+helper: |
+  Description:
+    Deploy to ACME infrastructure
+  
+  Usage:
+    infra deploy <environment> [options]
+  
+  Options:
+    --dry-run   Preview changes
+    --force     Skip confirmations
+  
+  Examples:
+    infra deploy staging
+    infra deploy prod --dry-run

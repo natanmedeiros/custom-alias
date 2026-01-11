@@ -1,0 +1,82 @@
+# Getting Started
+
+## Installation
+
+### From PyPI (Coming Soon)
+```bash
+pip install dynamic-alias
+```
+
+### From Source
+```bash
+git clone https://github.com/your-repo/dynamic-alias.git
+cd dynamic-alias
+pip install -e .
+```
+
+### Build Packages
+
+**Python Wheel:**
+```bash
+python -m build
+pip install dist/dynamic_alias-*.whl
+```
+
+**Debian Package:**
+```bash
+python setup.py --command-packages=stdeb.command bdist_deb
+sudo dpkg -i deb_dist/python3-dynamic-alias_*.deb
+```
+
+## First Configuration
+
+Create `~/.dya.yaml`:
+
+```yaml
+config:
+  history-size: 50
+
+---
+type: command
+name: Hello World
+alias: hello
+command: echo 'Hello, Dynamic Alias!'
+```
+
+## Running
+
+### Non-Interactive Mode
+```bash
+dya hello
+# Output: Hello, Dynamic Alias!
+```
+
+### Interactive Mode
+```bash
+dya
+# Starts interactive shell with autocomplete
+# Type 'hello' and press Tab for suggestions
+```
+
+## Config and Cache Paths
+
+By default:
+- **Config:** `~/.dya.yaml`
+- **Cache:** `~/.dya.json`
+
+Override with flags:
+```bash
+dya --dya-config /path/to/config.yaml --dya-cache /path/to/cache.json
+```
+
+## Next Steps
+
+- [Configuration Reference](configuration.md)
+- [Defining Commands](commands.md)
+- [Dynamic Data Sources](dynamic-dicts.md)
+
+---
+
+| ← Previous | Next → |
+|:-----------|-------:|
+| [Back to README](../README.md) | [Configuration](configuration.md) |
