@@ -76,12 +76,14 @@ Defines a CLI command.
 
 ## Declarative Metadata
 config:
-    style-completion: "bg:#008888 #ffffff"
-    style-completion-current: "bg:#00aaaa #000000"
-    style-scrollbar-background: "bg:#88aaaa"
-    style-scrollbar-button: "bg:#222222"
-    style-placeholder-color: "gray"
-    style-placeholder-text: "(tab for menu)"
+    style-completion: # Prompt_toolkit like pattern, default "bg:#008888 #ffffff"
+    style-completion-current: # Prompt_toolkit like pattern, default "bg:#00aaaa #000000"
+    style-scrollbar-background: # Prompt_toolkit like pattern, default "bg:#88aaaa"
+    style-scrollbar-button: # Prompt_toolkit like pattern, default "bg:#222222"
+    style-placeholder-color: # Placeholder color, Default "gray"
+    style-placeholder-text: # Placeholder to be display when empty, default "(tab for menu)"
+    history-size: # history cache size limit, default 20
+    verbose: # Enable verbose output, default false
 
 --- # New config block
 type: dict
