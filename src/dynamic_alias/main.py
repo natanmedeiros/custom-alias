@@ -167,8 +167,24 @@ def main():
             print(f"Error: {e}")
             sys.exit(1)
     
+    verbose = loader.global_config.verbose
+    
+    if verbose:
+        print(f"[VERBOSE] Loaded configuration from: {final_config_path}")
+    
     cache = CacheManager(final_cache_path, CACHE_ENABLED)
+    cache_existed = os.path.exists(final_cache_path)
     cache.load()
+    
+    if verbose:
+        if cache_existed:
+            print(f"[VERBOSE] Loaded cache from: {final_cache_path}")
+        else:
+            print(f"[VERBOSE] Created new cache file: {final_cache_path}")
+        
+        history = cache.get_history()
+        if history:
+            print(f"[VERBOSE] Loaded {len(history)} history entries")
     
     resolver = DataResolver(loader, cache)
     # Don't resolve_all() at startup - use lazy loading

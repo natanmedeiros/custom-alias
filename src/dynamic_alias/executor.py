@@ -135,6 +135,9 @@ class CommandExecutor:
 
     def execute(self, command_chain: List[Union[CommandConfig, SubCommand, ArgConfig]], variables: Dict[str, Any], remaining_args: List[str] = None):
         
+        # Flush any buffered verbose logs before execution
+        self.resolver.flush_verbose_logs()
+        
         if remaining_args is None:
             remaining_args = []
 

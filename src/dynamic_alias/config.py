@@ -83,6 +83,9 @@ class ConfigLoader:
                              # Rule 1.2.19: Max 1000
                              val = int(cfg['history-size'])
                              self.global_config.history_size = min(val, 1000)
+                             
+                        if 'verbose' in cfg:
+                             self.global_config.verbose = bool(cfg['verbose'])
                     else:
                         pass # Valid key, but not a config dict (ignoring)
                         

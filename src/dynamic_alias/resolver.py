@@ -10,6 +10,18 @@ class DataResolver:
         self.config = config
         self.cache = cache
         self.resolved_data: Dict[str, List[Dict[str, Any]]] = {}
+        self.verbose_log_buffer: List[str] = []  # Buffer for verbose logs during interactive mode
+    
+    def add_verbose_log(self, message: str):
+        """Add a verbose log message to the buffer (for interactive mode)."""
+        if self.config.global_config.verbose:
+            self.verbose_log_buffer.append(message)
+    
+    def flush_verbose_logs(self):
+        """Print and clear all buffered verbose logs."""
+        for msg in self.verbose_log_buffer:
+            print(msg)
+        self.verbose_log_buffer.clear()
 
     def resolve_all(self):
         """Resolve all dicts and dynamic_dicts at once (for non-interactive mode)."""
@@ -28,7 +40,9 @@ class DataResolver:
         Resolve a single dict/dynamic_dict on-demand (lazy loading).
         Uses cache if available, otherwise executes command and caches result.
         """
-        # Already resolved - return cached result
+        verbose = self.config.global_config.verbose
+        
+        # Already resolved - return result from memory (no verbose log - too noisy during autocomplete)
         if name in self.resolved_data:
             return self.resolved_data[name]
         
@@ -42,9 +56,17 @@ class DataResolver:
             dd = self.config.dynamic_dicts[name]
             data = self.cache.get(name, ttl=dd.cache_ttl)
             if data is None:
+                import time
+                start_time = time.time()
                 data = self._execute_dynamic_source(dd)
+                elapsed = time.time() - start_time
+                if verbose:
+                    self.add_verbose_log(f"[VERBOSE] Executed dynamic_dict '{name}' in {elapsed:.2f}s")
                 self.cache.set(name, data)
                 self.cache.save()
+            else:
+                if verbose:
+                    self.add_verbose_log(f"[VERBOSE] Loaded dynamic_dict '{name}' from cache")
             self.resolved_data[name] = data
             return self.resolved_data[name]
         
