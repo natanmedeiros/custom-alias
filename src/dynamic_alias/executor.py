@@ -166,8 +166,16 @@ class CommandExecutor:
         def app_var_replace(match):
             source = match.group(1)
             key = match.group(2)
+            # List mode: dict was used in alias, resolve from matched item
             if source in variables and isinstance(variables[source], dict):
                 return str(variables[source].get(key, match.group(0)))
+            # Direct mode: dict not in alias, resolve directly from dict data
+            data_list = self.resolver.resolve_one(source)
+            if data_list:
+                if len(data_list) == 1:
+                    # Single item dict - direct access
+                    return str(data_list[0].get(key, match.group(0)))
+                # Multi-item dict without alias selection - keep placeholder
             return match.group(0)
 
         cmd_resolved = re.sub(r'\$\$\{(\w+)\.(\w+)\}', app_var_replace, full_template)

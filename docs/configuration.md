@@ -51,6 +51,33 @@ history-size: 100
 | `style-placeholder-color` | `gray` | Placeholder text color |
 | `style-placeholder-text` | `(tab for menu)` | Placeholder hint |
 | `history-size` | `20` | Max commands in history (max: 1000) |
+| `verbose` | `false` | Enable verbose logging |
+
+### Verbose Mode
+
+When `verbose: true` is set, the application outputs diagnostic information:
+
+```yaml
+config:
+  verbose: true
+```
+
+**Output includes:**
+- Configuration file path loaded
+- Cache file path (loaded or created)
+- Number of history entries loaded
+- Dynamic dict execution times
+- Dynamic dict cache hits
+
+**Example output:**
+```
+[VERBOSE] Loaded configuration from: ~/.dya.yaml
+[VERBOSE] Loaded cache from: ~/.dya.json
+[VERBOSE] Loaded 5 history entries
+dya > dyn node-1
+[VERBOSE] Executed dynamic_dict 'mock_nodes' in 0.13s
+Running: echo dyn 10.0.0.1
+```
 
 > [!NOTE]
 > Style parameters follow the [prompt_toolkit](https://python-prompt-toolkit.readthedocs.io/en/master/pages/advanced_topics/styling.html) styling format. Use CSS-like syntax with `bg:` for background colors and color names or hex values for foreground.
