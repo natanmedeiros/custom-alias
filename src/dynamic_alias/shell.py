@@ -1,3 +1,5 @@
+import sys
+import os
 from prompt_toolkit import PromptSession
 from prompt_toolkit.history import History
 from prompt_toolkit.key_binding import KeyBindings
@@ -128,40 +130,47 @@ class InteractiveShell:
             key_bindings=bindings
         )
 
-        while True:
-            try:
-                text = session.prompt(f'{CUSTOM_SHORTCUT} > ', placeholder=placeholder_html)
-                text = text.strip()
-                if not text:
-                    continue
-                if text in ['exit', 'quit']:
-                    break
-                    
-                import shlex
+        try:
+            while True:
                 try:
-                    parts = shlex.split(text)
-                except ValueError:
-                    print("Error: Invalid quotes")
-                    continue
+                    text = session.prompt(f'{CUSTOM_SHORTCUT} > ', placeholder=placeholder_html)
+                    text = text.strip()
+                    if not text:
+                        continue
+                    if text in ['exit', 'quit']:
+                        break
+                        
+                    import shlex
+                    try:
+                        parts = shlex.split(text)
+                    except ValueError:
+                        print("Error: Invalid quotes")
+                        continue
+                        
+                    result = self.executor.find_command(parts)
                     
-                result = self.executor.find_command(parts)
-                
-                if result:
-                    cmd, vars, is_help, remaining = result
-                    if is_help:
-                        self.executor.print_help(cmd)
+                    if result:
+                        cmd, vars, is_help, remaining = result
+                        if is_help:
+                            self.executor.print_help(cmd)
+                        else:
+                            self.executor.execute(cmd, vars, remaining)
+                    
+                    elif len(parts) == 1 and parts[0] in ('-h', '--help'):
+                        self.executor.print_global_help()
+                        
                     else:
-                        self.executor.execute(cmd, vars, remaining)
-                
-                elif len(parts) == 1 and parts[0] in ('-h', '--help'):
-                    self.executor.print_global_help()
-                    
-                else:
-                    print("Invalid command.")
+                        print("Invalid command.")
 
-            except KeyboardInterrupt:
-                continue
-            except EOFError:
-                break
-            except Exception as e:
-                print(f"Error: {e}")
+                except KeyboardInterrupt:
+                    continue
+                except EOFError:
+                    break
+                except Exception as e:
+                    print(f"Error: {e}")
+        finally:
+            # Reset terminal state on exit (fixes bash invisible input issue)
+            # Issue: prompt_toolkit can leave terminal in raw/alternate state
+            if sys.platform != 'win32':
+                os.system('stty sane 2>/dev/null')
+

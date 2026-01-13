@@ -78,3 +78,28 @@ name: Timeout Cmd
 alias: timeout
 command: sleep 10
 timeout: 10
+
+---
+# Single-item dict for testing direct access mode
+type: dict
+name: single_config
+data:
+  - key: api_key
+    value: secret123
+    endpoint: https://api.example.com
+
+---
+# Command using direct access mode (dict not in alias, only in command)
+type: command
+name: Direct Access Test
+alias: direct-access
+command: echo key=$${single_config.key} value=$${single_config.value} endpoint=$${single_config.endpoint}
+helper: Tests direct dict access mode with single-item dict
+
+---
+# Command using list mode (dict in alias, same index for command keys)
+type: command
+name: List Access Test  
+alias: list-access $${static_envs.name}
+command: echo name=$${static_envs.name} url=$${static_envs.url}
+helper: Tests list dict access mode with multi-item dict
