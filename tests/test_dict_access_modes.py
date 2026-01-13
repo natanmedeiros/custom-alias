@@ -92,9 +92,9 @@ class TestDictAccessModes(unittest.TestCase):
             key = match.group(2)
             if source in variables and isinstance(variables[source], dict):
                 return str(variables[source].get(key, match.group(0)))
-            # Direct mode
+            # Direct mode: always use first item (position 0)
             data_list = self.resolver.resolve_one(source)
-            if data_list and len(data_list) == 1:
+            if data_list:
                 return str(data_list[0].get(key, match.group(0)))
             return match.group(0)
         
@@ -106,8 +106,8 @@ class TestDictAccessModes(unittest.TestCase):
         self.assertIn("endpoint=https://api.example.com", resolved)
         self.assertNotIn("$${", resolved)
 
-    def test_direct_access_multi_item_dict_does_not_resolve(self):
-        """Direct mode: Multi-item dict without alias should NOT resolve."""
+    def test_direct_access_multi_item_dict_uses_first_item(self):
+        """Direct mode: Multi-item dict should resolve using first item (position 0)."""
         # Create a command template with multi-item dict (static_envs has 2 items)
         import re
         template = "echo $${static_envs.url}"
@@ -118,15 +118,16 @@ class TestDictAccessModes(unittest.TestCase):
             key = match.group(2)
             if source in variables and isinstance(variables[source], dict):
                 return str(variables[source].get(key, match.group(0)))
+            # Direct mode: always use first item (position 0)
             data_list = self.resolver.resolve_one(source)
-            if data_list and len(data_list) == 1:
+            if data_list:
                 return str(data_list[0].get(key, match.group(0)))
             return match.group(0)
         
         resolved = re.sub(r'\$\$\{(\w+)\.(\w+)\}', app_var_replace, template)
         
-        # Placeholder should remain since dict has multiple items
-        self.assertIn("$${static_envs.url}", resolved)
+        # Should resolve to first item (dev.internal, which is position 0)
+        self.assertEqual(resolved, "echo dev.internal")
 
     # =========================================================================
     # List Access Mode Tests

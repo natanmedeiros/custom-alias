@@ -1,6 +1,7 @@
 config:
   style-completion: "bg:#002222 #ffffff"
   history-size: 5
+  verbose: true
 
 ---
 type: dict
@@ -103,3 +104,42 @@ name: List Access Test
 alias: list-access $${static_envs.name}
 command: echo name=$${static_envs.name} url=$${static_envs.url}
 helper: Tests list dict access mode with multi-item dict
+
+---
+# ============================================================================
+# CHAINING TESTS: dict -> dynamic_dict -> dynamic_dict -> command
+# ============================================================================
+
+# Step 1: Base dict with prefix value
+type: dict
+name: base_prefix
+data:
+  - prefix: CHAIN
+
+---
+# Step 2: First dynamic_dict that references the dict
+type: dynamic_dict
+name: level1_chain
+priority: 1
+command: |
+  powershell -NoProfile -Command "Write-Output '[{\"value\": \"$${base_prefix.prefix}-LEVEL1\"}]'"
+mapping:
+  result: value
+
+---
+# Step 3: Second dynamic_dict that references the first dynamic_dict
+type: dynamic_dict
+name: level2_chain
+priority: 2
+command: |
+  powershell -NoProfile -Command "Write-Output '[{\"value\": \"$${level1_chain.result}-LEVEL2\"}]'"
+mapping:
+  result: value
+
+---
+# Step 4: Command that uses the final chained result
+type: command
+name: Chain Test
+alias: chain-test
+command: echo $${level2_chain.result}
+helper: Tests chaining dict -> dynamic_dict -> dynamic_dict -> command
