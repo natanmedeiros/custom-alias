@@ -28,9 +28,13 @@ data:
 | `name` | Unique identifier for the dict |
 | `data` | List of key-value objects |
 
-## Usage in Commands
+## Access Modes
 
-Reference dict values using `$${dict_name.key}`:
+There are **two ways** to use dicts in commands:
+
+### List Mode (Dict in Alias)
+
+When you reference the dict in the **alias**, the user selects an item interactively, and all keys in the command resolve from that **same item**:
 
 ```yaml
 ---
@@ -47,14 +51,82 @@ data:
 ---
 type: command
 name: SSH Connect
-alias: ssh $${servers.name}
+alias: ssh $${servers.name}        # ← Dict in ALIAS (list mode)
 command: ssh $${servers.user}@$${servers.host}
 ```
 
-When you type `ssh prod`, it expands to:
-```bash
-ssh admin@192.168.1.10
+**Usage:**
 ```
+dya> ssh <TAB>
+         prod
+         staging
+
+dya> ssh prod
+Running: ssh admin@192.168.1.10
+```
+
+The user selects `prod`, so `$${servers.user}` resolves to `admin` and `$${servers.host}` resolves to `192.168.1.10` from the **same item**.
+
+### Direct Mode (Dict NOT in Alias)
+
+When you reference the dict **only in the command** (not in alias), it always accesses the **first item (position 0)** of the data list:
+
+```yaml
+---
+type: dict
+name: api_config
+data:
+  - key: MY_API_KEY
+    endpoint: https://api.example.com
+    timeout: 30
+
+---
+type: command
+name: API Call
+alias: api-call                    # ← No dict in alias (direct mode)
+command: curl -H "Authorization: $${api_config.key}" $${api_config.endpoint}
+```
+
+**Usage:**
+```
+dya> api-call
+Running: curl -H "Authorization: MY_API_KEY" https://api.example.com
+```
+
+> [!IMPORTANT]
+> In **direct mode**, even if the dict has multiple items, it **always accesses position 0** (the first item).
+
+**Example with multiple items (only first is used):**
+
+```yaml
+---
+type: dict
+name: regions
+data:
+  - name: us-east-1    # ← Position 0 (used in direct mode)
+    endpoint: https://us-east-1.api.com
+  - name: eu-west-1    # ← Position 1 (ignored in direct mode)
+    endpoint: https://eu-west-1.api.com
+
+---
+type: command
+name: Default Region
+alias: default-region              # ← No dict in alias
+command: echo "Using region: $${regions.name}"
+```
+
+**Usage:**
+```
+dya> default-region
+Running: echo "Using region: us-east-1"   # Always uses position 0
+```
+
+## Mode Comparison
+
+| Mode | Dict in Alias | Behavior |
+|------|---------------|----------|
+| **List** | ✓ Yes | User selects item; all keys from same item |
+| **Direct** | ✗ No | Always uses first item (position 0) |
 
 ## Multiple Keys
 
@@ -79,12 +151,12 @@ data:
 
 ## Autocomplete
 
-In interactive mode, typing the alias prefix shows all available options:
+In interactive mode (list mode), typing the alias prefix shows all available options:
 
 ```
 dya> ssh <TAB>
-          prod
-          staging
+         prod
+         staging
 ```
 
 ---

@@ -135,9 +135,6 @@ class CommandExecutor:
 
     def execute(self, command_chain: List[Union[CommandConfig, SubCommand, ArgConfig]], variables: Dict[str, Any], remaining_args: List[str] = None):
         
-        # Flush any buffered verbose logs before execution
-        self.resolver.flush_verbose_logs()
-        
         if remaining_args is None:
             remaining_args = []
 
@@ -169,13 +166,10 @@ class CommandExecutor:
             # List mode: dict was used in alias, resolve from matched item
             if source in variables and isinstance(variables[source], dict):
                 return str(variables[source].get(key, match.group(0)))
-            # Direct mode: dict not in alias, resolve directly from dict data
+            # Direct mode: dict not in alias, always access first item (position 0)
             data_list = self.resolver.resolve_one(source)
             if data_list:
-                if len(data_list) == 1:
-                    # Single item dict - direct access
-                    return str(data_list[0].get(key, match.group(0)))
-                # Multi-item dict without alias selection - keep placeholder
+                return str(data_list[0].get(key, match.group(0)))
             return match.group(0)
 
         cmd_resolved = re.sub(r'\$\$\{(\w+)\.(\w+)\}', app_var_replace, full_template)
@@ -193,6 +187,9 @@ class CommandExecutor:
             # Quote arguments to preserve spaces during shell concatenation
             quoted_extras = " ".join(shlex.quote(arg) for arg in remaining_args)
             cmd_resolved += " " + quoted_extras
+        
+        # Flush verbose logs AFTER variable resolution (so chained resolution logs show with current command)
+        self.resolver.flush_verbose_logs()
         
         print_formatted_text(HTML(f"<b><green>Running:</green></b> {cmd_resolved}"))
         print("-" * 30)
