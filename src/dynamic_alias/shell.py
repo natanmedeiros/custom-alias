@@ -1,5 +1,6 @@
 import sys
 import os
+import signal
 from prompt_toolkit import PromptSession
 from prompt_toolkit.history import History
 from prompt_toolkit.key_binding import KeyBindings
@@ -45,6 +46,16 @@ class InteractiveShell:
         self.executor = executor
 
     def run(self):
+        # Register SIGTERM handler for graceful cleanup when killed
+        def cleanup_and_exit(signum, frame):
+            if sys.platform != 'win32':
+                os.system('stty sane 2>/dev/null')
+            sys.exit(0)
+        
+        if sys.platform != 'win32':
+            signal.signal(signal.SIGTERM, cleanup_and_exit)
+            signal.signal(signal.SIGHUP, cleanup_and_exit)  # Also handle terminal close
+        
         completer = DynamicAliasCompleter(self.resolver, self.executor)
         
         # Rule 1.1.10: Use styles from config (with defaults in models.py)
