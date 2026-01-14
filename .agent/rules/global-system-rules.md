@@ -50,6 +50,10 @@ These rules must be applied to every application file
 1.2.18.4 - CUSTOM_NAME must be used to build helper header
 1.2.19 - cache file must contain _history with command execution history limited to default last 20 but can be replaced by used defined config history-size with max of 1000
 1.2.20 - if _history exists, cache must be appended and shifted only if exceeds history-size
+1.2.21 - There is a system flag called --${shortcut}-clear-cache which if executed must purge cache entries that do not starts with underscore "_" from identified in system path e.g. ~/.${shortcut}.json or ./.${shortcut}.json or etc
+1.2.22 - When try to import cache, if ttl is expired, cache entry must be purged from file
+1.2.23 - There is a system flag called --${shortcut}-clear-history which if executed must purge cache _history entry from file identified in system path e.g. ~/.${shortcut}.json or ./.${shortcut}.json or etc
+1.2.24 - There is a system flag called --${shortcut}-clear-all which if executed must delete cache file identified in system path e.g. ~/.${shortcut}.json or ./.${shortcut}.json or etc
 1.3 - Helper
 1.3.1 - The helper can be displayed by using flag -h or --help
 1.3.2 - Can't use -h or --help as command args, these flags are restricted

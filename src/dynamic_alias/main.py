@@ -28,10 +28,16 @@ def main():
     config_flag = f"--{CUSTOM_SHORTCUT}-config"
     cache_flag = f"--{CUSTOM_SHORTCUT}-cache"
     validate_flag = f"--{CUSTOM_SHORTCUT}-validate"
+    clear_cache_flag = f"--{CUSTOM_SHORTCUT}-clear-cache"
+    clear_history_flag = f"--{CUSTOM_SHORTCUT}-clear-history"
+    clear_all_flag = f"--{CUSTOM_SHORTCUT}-clear-all"
     
     config_file_override = None
     cache_file_override = None
     run_validation = False
+    run_clear_cache = False
+    run_clear_history = False
+    run_clear_all = False
     
     filtered_args = []
     
@@ -56,6 +62,18 @@ def main():
                 sys.exit(1)
         elif arg == validate_flag:
             run_validation = True
+            i += 1
+            continue
+        elif arg == clear_cache_flag:
+            run_clear_cache = True
+            i += 1
+            continue
+        elif arg == clear_history_flag:
+            run_clear_history = True
+            i += 1
+            continue
+        elif arg == clear_all_flag:
+            run_clear_all = True
             i += 1
             continue
         else:
@@ -99,6 +117,9 @@ def main():
         print(f"  {config_flag} <path>      : Specify custom configuration file")
         print(f"  {cache_flag} <path>       : Specify custom cache file")
         print(f"  {validate_flag}          : Validate configuration file")
+        print(f"  {clear_cache_flag}     : Clear dynamic dict cache (keeps history)")
+        print(f"  {clear_history_flag}   : Clear command history")
+        print(f"  {clear_all_flag}       : Delete entire cache file")
         print(f"  {dya_help_flag}               : Display this command line builder help")
         print("\nDocumentation:")
         print("  https://github.com/natanmedeiros/dynamic-alias?tab=readme-ov-file#documentation")
@@ -114,6 +135,33 @@ def main():
         report = validator.validate()
         exit_code = print_validation_report(report, CUSTOM_SHORTCUT)
         sys.exit(exit_code)
+    
+    # Handle cache management flags (rules 1.2.21, 1.2.23, 1.2.24)
+    if run_clear_cache or run_clear_history or run_clear_all:
+        cache = CacheManager(final_cache_path, True)
+        cache.load()
+        
+        if run_clear_all:
+            # Rule 1.2.24: Delete entire cache file
+            if cache.delete_all():
+                print(f"Cache file deleted: {final_cache_path}")
+            else:
+                print(f"Cache file not found: {final_cache_path}")
+            return
+        
+        if run_clear_cache:
+            # Rule 1.2.21: Clear non-underscore entries
+            count = cache.clear_cache()
+            print(f"Cleared {count} cache entries (history preserved)")
+        
+        if run_clear_history:
+            # Rule 1.2.23: Clear _history
+            if cache.clear_history():
+                print("Command history cleared")
+            else:
+                print("No history to clear")
+        
+        return
 
 
 

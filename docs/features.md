@@ -137,6 +137,35 @@ mapping:
 }
 ```
 
+### Cache Management Flags
+
+Manage your cache with these flags:
+
+| Flag | Description |
+|------|-------------|
+| `--dya-clear-cache` | Remove cached dynamic dict data (keeps history) |
+| `--dya-clear-history` | Clear command history |
+| `--dya-clear-all` | Delete entire cache file |
+
+**Examples:**
+
+```bash
+# Clear dynamic dict cache (useful after updating sources)
+dya --dya-clear-cache
+# Output: Cleared 5 cache entries (history preserved)
+
+# Clear command history
+dya --dya-clear-history
+# Output: Command history cleared
+
+# Delete entire cache file (fresh start)
+dya --dya-clear-all
+# Output: Cache file deleted: ~/.dya.json
+```
+
+> [!NOTE]
+> Expired cache entries are automatically purged when loading the cache, based on each dynamic dict's `cache-ttl` setting.
+
 ## Environment Variables
 
 Access OS environment variables:

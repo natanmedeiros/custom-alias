@@ -120,7 +120,7 @@ data:
 # Step 2: First dynamic_dict that references the dict
 type: dynamic_dict
 name: level1_chain
-priority: 1
+priority: 3
 command: |
   powershell -NoProfile -Command "Write-Output '[{\"value\": \"$${base_prefix.prefix}-LEVEL1\"}]'"
 mapping:

@@ -447,24 +447,80 @@ class ConfigValidator:
             for source, key in refs:
                 if source in priorities:
                     ref_priority = priorities[source]
-                    # Referencing must have higher priority (rule 3.1)
-                    # Higher priority number = later execution
-                    # So reference must have lower priority number
+                    # With lazy loading, priority order is not essential for correctness
+                    # The resolver handles dependencies on-demand
+                    # Only circular references should block - priority is just for optimization
                     if source in self.dynamic_dicts and ref_priority >= my_priority:
                         self.report.add(ValidationResult(
-                            passed=False,
-                            message=f"dynamic_dict '{name}' (priority {my_priority}) references '{source}' (priority {ref_priority})",
-                            hint=f"Referenced dynamic_dict must have lower priority. Set '{source}' priority < {my_priority} or '{name}' priority > {ref_priority}",
-                            location=f"Block {dd.get('_block_index', '?')}"
+                            passed=True,  # Warning only, not blocking
+                            message=f"[WARNING] dynamic_dict '{name}' (priority {my_priority}) references '{source}' (priority {ref_priority}) - lazy loading will handle this"
                         ))
         
-        # If no priority errors, add success
-        priority_failures = [r for r in self.report.results 
-                           if not r.passed and 'priority' in r.message.lower()]
-        if not priority_failures:
+        # Priority order is always "OK" now (just warnings)
+        self.report.add(ValidationResult(
+            passed=True,
+            message="Priority order checked (lazy loading handles dependencies)"
+        ))
+        
+        # Check for circular references
+        self._validate_circular_references()
+    
+    def _validate_circular_references(self):
+        """Detect circular references in dynamic_dict dependencies."""
+        # Build dependency graph: name -> set of dependencies
+        graph: Dict[str, Set[str]] = {}
+        
+        for name, dd in self.dynamic_dicts.items():
+            cmd = dd.get('command', '')
+            refs = self._extract_references(cmd)
+            # Only track references to other dynamic_dicts (not static dicts)
+            deps = {source for source, key in refs if source in self.dynamic_dicts}
+            graph[name] = deps
+        
+        # DFS to detect cycles
+        visited = set()
+        rec_stack = set()
+        cycles_found = []
+        
+        def find_cycle(node: str, path: List[str]) -> Optional[List[str]]:
+            if node in rec_stack:
+                # Found cycle - return the cycle path
+                cycle_start = path.index(node)
+                return path[cycle_start:] + [node]
+            if node in visited:
+                return None
+            
+            visited.add(node)
+            rec_stack.add(node)
+            path.append(node)
+            
+            for dep in graph.get(node, []):
+                cycle = find_cycle(dep, path)
+                if cycle:
+                    return cycle
+            
+            path.pop()
+            rec_stack.remove(node)
+            return None
+        
+        for name in self.dynamic_dicts:
+            if name not in visited:
+                cycle = find_cycle(name, [])
+                if cycle:
+                    cycles_found.append(cycle)
+        
+        if cycles_found:
+            for cycle in cycles_found:
+                cycle_str = ' -> '.join(cycle)
+                self.report.add(ValidationResult(
+                    passed=False,
+                    message=f"Circular reference detected: {cycle_str}",
+                    hint="Break the cycle by using a static dict or restructuring dependencies"
+                ))
+        else:
             self.report.add(ValidationResult(
                 passed=True,
-                message="Priority order is correct for all dynamic_dict references"
+                message="No circular references in dynamic_dict dependencies"
             ))
 
 

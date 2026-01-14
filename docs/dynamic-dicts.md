@@ -154,10 +154,19 @@ Cache is stored in the cache file (default: `~/.dya.json`):
 
 ### Force Refresh
 
-Delete the cache file or wait for TTL expiration:
+Use cache management flags to refresh data:
+
 ```bash
-rm ~/.dya.json
+# Clear all cached dynamic dict data
+dya --dya-clear-cache
+# Output: Cleared 3 cache entries (history preserved)
+
+# Or delete entire cache file (also clears history)
+dya --dya-clear-all
 ```
+
+> [!TIP]
+> Use `--dya-clear-cache` after updating your cloud resources to force re-fetching on next use.
 
 ## Priority
 
