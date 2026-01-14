@@ -154,7 +154,7 @@ type: command
 name: Set Local Variable
 alias: set-local ${key} ${value}
 command: |
-  .\.venv\Scripts\python.exe dya_dev.py --dya-config ./tests/dya.yaml --dya-cache ./tests/dya.json --dya-set-locals ${key} ${value}
+  .\.venv\Scripts\python.exe dya_dev.py --dya-set-locals ${key} ${value}
 helper: |
   Description:
     Sets a local variable using recursive dya call

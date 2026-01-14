@@ -19,26 +19,14 @@ class CacheHistory(History):
         
     def load_history_strings(self):
         # Return history in chronological order (oldest to newest)
-        # User reported reverse order issue, trying implicit reversal? 
-        # Actually prompt_toolkit expects oldest->newest.
-        # But if user says it's reversed... let's try just returning it as is, but verify list.
-        # If user claims "processing in reverse", maybe passing reversed() helps?
-        # Let's try reversing it.
-        # Original: return self.cache_manager.get_history()
-        # If the file is Oldest->Newest, and up-arrow gives Oldest, then toolkit thinks Oldest is Newest.
-        # This implies Oldest is last.
-        # So yielding Oldest LAST would cause this.
-        # But we yield Newest LAST.
-        # Let's try reversing the list so Newest is yielded FIRST?
-        # If Newest is yielded FIRST (index 0), then prompt_toolkit might iterate from 0?
-        # No, it uses iterator.
-        
-        # Let's just trust the "reverse" feedback and reverse the list.
         return reversed(self.cache_manager.get_history())
         
     def store_string(self, string: str):
-         self.cache_manager.add_history(string, self.limit)
-         self.cache_manager.save()
+         # Rule 1.2.25/1.2.26: 
+         # We typically verify/save here, but PromptSession runs this in a background thread.
+         # This causes a race condition with subprocesses (like set-local) that modify the cache concurrently.
+         # To fix this, we disable saving here and manually handle it in the main loop (synchronously).
+         pass
 
 class InteractiveShell:
     def __init__(self, resolver: DataResolver, executor: CommandExecutor):
@@ -92,20 +80,6 @@ class InteractiveShell:
                 elif b.complete_state.completions:
                      b.apply_completion(b.complete_state.completions[0])
             else:
-                # If no menu, Tab triggers completion (standard behavior)
-                # But rule says "tab and enter must have same behavior, complete word".
-                # If no list is showing, Enter executes. But Tab should assume we want to complete?
-                # "but if not showing any list, enter must execute command".
-                # It doesn't say Tab executes. Tab usually just opens completion.
-                # So we keep Tab as standard completion trigger if list not open?
-                # Actually, standard 'tab' key binding in prompt_toolkit triggers completion if not active.
-                # So forcing it to apply_completion might break opening the menu?
-                # No, standard 'tab' usually cycles or completes common prefix.
-                # If I hijack it, I must ensure it still opens menu if closed?
-                # Wait. "When showing autocompletion list...".
-                # The rule applies ONLY "When showing autocompletion list".
-                # So inside `if b.complete_state`, Tab and Enter do same thing.
-                # Outside? Enter executes. Tab? Probably opens list.
                 pass 
                 
             # If we don't handle it here (i.e. not in complete_state), we should let default handling happen?
@@ -148,6 +122,15 @@ class InteractiveShell:
                     text = text.strip()
                     if not text:
                         continue
+                    
+                    # Manual History Management (Sync Logic)
+                    # 1. Reload cache to pick up any changes from previous commands/subprocesses
+                    self.resolver.cache.load()
+                    # 2. Add current command to history
+                    self.resolver.cache.add_history(text, global_config.history_size)
+                    # 3. Save updated state (merging external changes + new history)
+                    self.resolver.cache.save()
+
                     if text in ['exit', 'quit']:
                         break
                         
@@ -194,4 +177,3 @@ class InteractiveShell:
             # Issue: prompt_toolkit can leave terminal in raw/alternate state
             if sys.platform != 'win32':
                 os.system('stty sane 2>/dev/null')
-

@@ -1,10 +1,10 @@
 import subprocess
 import json
-import re
 from typing import Dict, List, Any
 from .models import DynamicDictConfig
 from .config import ConfigLoader
 from .cache import CacheManager
+from .utils import VariableResolver
 
 class DataResolver:
     def __init__(self, config: ConfigLoader, cache: CacheManager):
@@ -89,21 +89,13 @@ class DataResolver:
 
     def _execute_dynamic_source(self, dd: DynamicDictConfig) -> List[Dict[str, Any]]:
         try:
-            cmd = dd.command
-            
-            # Substitute $${source.key} references from already-resolved dicts/dynamic_dicts
-            # This enables chaining: dict -> dynamic_dict -> dynamic_dict
-            def replace_var(match):
-                source = match.group(1)
-                key = match.group(2)
-                # Resolve the source if not already resolved (lazy dependency resolution)
-                data_list = self.resolve_one(source)
-                if data_list:
-                    # Direct mode: always use first item (position 0)
-                    return str(data_list[0].get(key, match.group(0)))
-                return match.group(0)
-            
-            cmd = re.sub(r'\$\$\{(\w+)\.(\w+)\}', replace_var, cmd)
+            # Refactored to use VariableResolver (DRY)
+            # Replaces substitution logic with centralized utility
+            # Behavior preserved: resolver.py only supports "Direct Mode" (lazy resolution)
+            cmd = VariableResolver.resolve_app_vars(
+                dd.command, 
+                resolver_func=self.resolve_one
+            )
             
             result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=dd.timeout)
             if result.returncode != 0:
@@ -154,4 +146,3 @@ class DataResolver:
         except Exception as e:
             print(f"Error in dynamic dict '{dd.name}': {e}")
             return []
-

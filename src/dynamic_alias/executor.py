@@ -9,6 +9,7 @@ from prompt_toolkit.shortcuts import print_formatted_text
 from prompt_toolkit.formatted_text import HTML
 from .models import CommandConfig, SubCommand, ArgConfig
 from .resolver import DataResolver
+from .utils import VariableResolver
 from .constants import CUSTOM_NAME, CUSTOM_SHORTCUT
 
 class CommandExecutor:
@@ -25,15 +26,14 @@ class CommandExecutor:
         # unless we find a help flag which shortcuts the process.
         for i, (alias_token, user_token) in enumerate(zip(alias_parts, input_parts)):
             # 1. Check for app variable: $${source.key}
-            app_var_match = re.match(r'\$\$\{(\w+)\.(\w+)\}', alias_token)
-            if app_var_match:
+            app_var = VariableResolver.parse_app_var(alias_token)
+            if app_var:
+                source_name, key_name = app_var
+
                 # Rule 1.3.5: Partial match help for dynamic variables too
                 if user_token in ('-h', '--help'):
                     return True, variables, True
 
-                source_name = app_var_match.group(1) 
-                key_name = app_var_match.group(2)    
-                
                 data_list = self.resolver.resolve_one(source_name)
                 if not data_list:
                     return False, {}, False
@@ -52,15 +52,14 @@ class CommandExecutor:
 
 
             # 2. Check for user variable: ${var}
-            user_var_match = re.match(r'\$\{(\w+)\}', alias_token)
-            if user_var_match:
+            var_name = VariableResolver.parse_user_var(alias_token)
+            if var_name:
                 # Rule 1.3.2: Can't use -h or --help as command args
                 # But Rule 1.3.5 says partial match should show help.
                 # So if we see help here, we treat it as "Partial Match Help Found" and stop.
                 if user_token in ('-h', '--help'):
                     return True, variables, True
                     
-                var_name = user_var_match.group(1)
                 variables[var_name] = user_token
                 continue
 
@@ -161,35 +160,18 @@ class CommandExecutor:
 
         full_template = " ".join([obj.command for obj in command_chain])
         
-        def app_var_replace(match):
-            source = match.group(1)
-            key = match.group(2)
-            
-            # Rule 1.2.25: Handle $${locals.key} specially
-            if source == 'locals':
-                value = self.resolver.cache.get_local(key)
-                if value is not None:
-                    return value
-                return match.group(0)  # Keep original if not found
-            
-            # List mode: dict was used in alias, resolve from matched item
-            if source in variables and isinstance(variables[source], dict):
-                return str(variables[source].get(key, match.group(0)))
-            # Direct mode: dict not in alias, always access first item (position 0)
-            data_list = self.resolver.resolve_one(source)
-            if data_list:
-                return str(data_list[0].get(key, match.group(0)))
-            return match.group(0)
-
-        cmd_resolved = re.sub(r'\$\$\{(\w+)\.(\w+)\}', app_var_replace, full_template)
+        # Refactored to use VariableResolver (DRY)
         
-        def user_var_replace(match):
-            key = match.group(1)
-            if key in variables and isinstance(variables[key], str):
-                return variables[key]
-            return match.group(0)
-
-        cmd_resolved = re.sub(r'\$\{(\w+)\}', user_var_replace, cmd_resolved)
+        # 1. App Vars ($${source.key})
+        cmd_resolved = VariableResolver.resolve_app_vars(
+            full_template, 
+            resolver_func=self.resolver.resolve_one,
+            context_vars=variables,
+            use_local_cache=lambda k: self.resolver.cache.get_local(k)
+        )
+        
+        # 2. User Vars (${var})
+        cmd_resolved = VariableResolver.resolve_user_vars(cmd_resolved, variables)
         
         # Append remaining args if not strict
         if remaining_args:
@@ -258,7 +240,9 @@ class CommandExecutor:
                 # Normal execution
                 subprocess.run(cmd_resolved, shell=True, timeout=effective_timeout)
             
-            # Save valid cache state (dynamic dicts)
+            # Reload cache from disk to pick up changes made by subprocesses (e.g., set-locals)
+            # Then save to merge any parent-side changes (e.g., dynamic dict cache)
+            self.resolver.cache.load()
             self.resolver.cache.save()
 
         except KeyboardInterrupt:

@@ -60,8 +60,9 @@ class TestHistoryIntegration(unittest.TestCase):
         had_history = '_history' in self.cache.cache
         initial_len = len(self.cache.get_history())
         
-        # Add a command
-        self.history_adapter.store_string("test_create")
+        # Add a command (using CacheManager directly since store_string is now a no-op)
+        self.cache.add_history("test_create", self.history_limit)
+        self.cache.save()
         
         # Verify _history exists and has at least one entry
         history = self.cache.get_history()
@@ -78,9 +79,10 @@ class TestHistoryIntegration(unittest.TestCase):
         initial_history = self.cache.get_history().copy()
         initial_len = len(initial_history)
         
-        # Add new command
+        # Add new command (using CacheManager directly)
         new_cmd = f"test_append_{initial_len}"
-        self.history_adapter.store_string(new_cmd)
+        self.cache.add_history(new_cmd, self.history_limit)
+        self.cache.save()
         
         # Verify appended
         new_history = self.cache.get_history()
@@ -92,9 +94,10 @@ class TestHistoryIntegration(unittest.TestCase):
     
     def test_history_shift_when_exceeds_limit(self):
         """Test: When history exceeds limit, shift (remove oldest)"""
-        # Fill history to limit
+        # Fill history to limit (using CacheManager directly)
         for i in range(self.history_limit + 2):
-            self.history_adapter.store_string(f"shift_test_{i}")
+            self.cache.add_history(f"shift_test_{i}", self.history_limit)
+        self.cache.save()
         
         # Verify length never exceeds limit
         history = self.cache.get_history()
@@ -109,9 +112,10 @@ class TestHistoryIntegration(unittest.TestCase):
     
     def test_history_persists_across_sessions(self):
         """Test: History persists in tests/dya.json across cache reloads"""
-        # Add a unique command
+        # Add a unique command (using CacheManager directly)
         unique_cmd = f"persist_test_{os.getpid()}"
-        self.history_adapter.store_string(unique_cmd)
+        self.cache.add_history(unique_cmd, self.history_limit)
+        self.cache.save()
         
         # Create new cache manager (simulates new session)
         new_cache = CacheManager(DYA_JSON_PATH, enabled=True)
@@ -123,9 +127,13 @@ class TestHistoryIntegration(unittest.TestCase):
     
     def test_load_history_strings_reversed(self):
         """Test: load_history_strings returns reversed order for up-arrow"""
-        # Add commands in order
-        self.history_adapter.store_string("order_first")
-        self.history_adapter.store_string("order_second")
+        # Add commands in order (using CacheManager directly)
+        self.cache.add_history("order_first", self.history_limit)
+        self.cache.add_history("order_second", self.history_limit)
+        self.cache.save()
+        
+        # Reload to ensure adapter sees the changes
+        self.cache.load()
         
         # Load via adapter (should be reversed: newest first)
         loaded = list(self.history_adapter.load_history_strings())
@@ -139,7 +147,8 @@ class TestHistoryIntegration(unittest.TestCase):
     
     def test_history_no_ttl_metadata(self):
         """Test: _history is plain list of strings (no timestamps like dynamic dicts)"""
-        self.history_adapter.store_string("no_ttl_test")
+        self.cache.add_history("no_ttl_test", self.history_limit)
+        self.cache.save()
         
         with open(DYA_JSON_PATH, 'r') as f:
             data = json.load(f)

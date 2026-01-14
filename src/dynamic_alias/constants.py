@@ -54,3 +54,27 @@ def get_config_from_toml():
     return DEFAULT_SHORTCUT, DEFAULT_NAME
 
 CUSTOM_SHORTCUT, CUSTOM_NAME = get_config_from_toml()
+
+# Regex Patterns
+REGEX_APP_VAR = r'\$\$\{(\w+)\.(\w+)\}'  # Matches $${source.key}
+REGEX_USER_VAR = r'\$\{(\w+)\}'          # Matches ${var}
+
+# Configuration CONSTANTS (Moved from validator.py)
+REQUIRED_FIELDS = {
+    'dict': ['type', 'name', 'data'],
+    'dynamic_dict': ['type', 'name', 'command', 'mapping'],
+    'command': ['type', 'name', 'alias', 'command'],
+}
+
+OPTIONAL_FIELDS = {
+    'dict': [],
+    'dynamic_dict': ['priority', 'timeout', 'cache-ttl'],
+    'command': ['helper', 'sub', 'args', 'timeout', 'strict', 'set-locals'],
+}
+
+CONFIG_KEYS = [
+    'style-completion', 'style-completion-current', 
+    'style-scrollbar-background', 'style-scrollbar-button',
+    'style-placeholder-color', 'style-placeholder-text',
+    'history-size', 'verbose', 'shell'
+]

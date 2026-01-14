@@ -12,6 +12,8 @@ import re
 import yaml
 from typing import Dict, List, Tuple, Any, Set, Optional
 from dataclasses import dataclass, field
+from .constants import REQUIRED_FIELDS, OPTIONAL_FIELDS, CONFIG_KEYS
+from .utils import VariableResolver
 
 
 @dataclass
@@ -44,31 +46,10 @@ class ValidationReport:
     def add(self, result: ValidationResult):
         self.results.append(result)
 
-
 class ConfigValidator:
     """Validates dya.yaml configuration files."""
     
-    # Required fields per block type
-    REQUIRED_FIELDS = {
-        'dict': ['type', 'name', 'data'],
-        'dynamic_dict': ['type', 'name', 'command', 'mapping'],
-        'command': ['type', 'name', 'alias', 'command'],
-    }
-    
-    # Optional fields per block type
-    OPTIONAL_FIELDS = {
-        'dict': [],
-        'dynamic_dict': ['priority', 'timeout', 'cache-ttl'],
-        'command': ['helper', 'sub', 'args', 'timeout', 'strict', 'set-locals'],
-    }
-    
-    # Valid config block keys
-    CONFIG_KEYS = [
-        'style-completion', 'style-completion-current', 
-        'style-scrollbar-background', 'style-scrollbar-button',
-        'style-placeholder-color', 'style-placeholder-text',
-        'history-size', 'verbose', 'shell'
-    ]
+    # Constants moved to constants.py for DRY compliance
     
     def __init__(self, config_path: str):
         self.config_path = config_path
@@ -191,12 +172,12 @@ class ConfigValidator:
         # Validate config block
         if self.global_config is not None:
             invalid_keys = [k for k in self.global_config.keys() 
-                          if k not in self.CONFIG_KEYS]
+                          if k not in CONFIG_KEYS]
             if invalid_keys:
                 self.report.add(ValidationResult(
                     passed=False,
                     message=f"Unknown config keys: {', '.join(invalid_keys)}",
-                    hint=f"Valid keys: {', '.join(self.CONFIG_KEYS)}",
+                    hint=f"Valid keys: {', '.join(CONFIG_KEYS)}",
                     location="config block"
                 ))
             else:
@@ -224,7 +205,7 @@ class ConfigValidator:
     
     def _validate_required_fields(self, block: Dict, block_type: str, name: str):
         """Check required fields exist for a block type."""
-        required = self.REQUIRED_FIELDS.get(block_type, [])
+        required = REQUIRED_FIELDS.get(block_type, [])
         missing = [f for f in required if f not in block]
         
         if missing:
@@ -342,10 +323,7 @@ class ConfigValidator:
     
     def _extract_references(self, text: str) -> Set[Tuple[str, str]]:
         """Extract all $${source.key} references from text."""
-        if not isinstance(text, str):
-            return set()
-        pattern = r'\$\$\{(\w+)\.(\w+)\}'
-        return set(re.findall(pattern, text))
+        return VariableResolver.extract_app_vars(text)
     
     def _validate_references(self):
         """Rule 1.1.15: Check all referenced dicts/dynamic_dicts are defined."""
