@@ -26,6 +26,9 @@ mapping:
 | `command` | Shell command that outputs JSON |
 | `mapping` | Maps JSON keys to internal keys |
 
+> [!NOTE]
+> The command output is automatically validated. If the output is not valid JSON, an error is displayed with details including the parse error position and a preview of the output.
+
 ## Optional Fields
 
 | Field | Default | Description |
