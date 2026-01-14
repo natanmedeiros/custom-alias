@@ -11,15 +11,7 @@ import tempfile
 import sys
 from unittest.mock import patch, MagicMock
 
-# Mock prompt_toolkit modules BEFORE any imports
-sys.modules['prompt_toolkit'] = MagicMock()
-sys.modules['prompt_toolkit.shortcuts'] = MagicMock()
-sys.modules['prompt_toolkit.formatted_text'] = MagicMock()
-sys.modules['prompt_toolkit.key_binding'] = MagicMock()
-sys.modules['prompt_toolkit.history'] = MagicMock()
-sys.modules['prompt_toolkit.patch_stdout'] = MagicMock()
-sys.modules['prompt_toolkit.completion'] = MagicMock()
-sys.modules['prompt_toolkit.styles'] = MagicMock()
+# Note: prompt_toolkit mocking is handled globally in conftest.py
 
 # Add src
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))

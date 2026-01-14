@@ -6,12 +6,15 @@ Implements rules 1.1.14, 1.1.15, 1.1.16, 1.1.17:
 - Check that all referenced dicts/dynamic_dicts are defined
 - Check priority order for dynamic_dict references
 - User-friendly output with checklist, hints, and summary
+
+Design Pattern: Strategy pattern for block type validation
 """
 import os
 import re
 import yaml
-from typing import Dict, List, Tuple, Any, Set, Optional
+from typing import Dict, List, Tuple, Any, Set, Optional, Protocol
 from dataclasses import dataclass, field
+from abc import ABC, abstractmethod
 from .constants import REQUIRED_FIELDS, OPTIONAL_FIELDS, CONFIG_KEYS
 from .utils import VariableResolver
 
@@ -43,13 +46,176 @@ class ValidationReport:
     def failed_count(self) -> int:
         return sum(1 for r in self.results if not r.passed)
     
-    def add(self, result: ValidationResult):
+    def add(self, result: ValidationResult) -> None:
         self.results.append(result)
 
-class ConfigValidator:
-    """Validates dya.yaml configuration files."""
+
+# =============================================================================
+# Strategy Pattern: Block Validation Strategies
+# =============================================================================
+
+class BlockValidationStrategy(ABC):
+    """Abstract strategy for validating different block types."""
     
-    # Constants moved to constants.py for DRY compliance
+    @abstractmethod
+    def validate(self, block: Dict[str, Any], name: str, report: ValidationReport) -> None:
+        """Validate a block and add results to report."""
+        pass
+    
+    def _validate_required_fields(self, block: Dict, block_type: str, name: str, report: ValidationReport) -> None:
+        """Check required fields exist for a block type."""
+        required = REQUIRED_FIELDS.get(block_type, [])
+        missing = [f for f in required if f not in block]
+        
+        if missing:
+            report.add(ValidationResult(
+                passed=False,
+                message=f"{block_type} '{name}' missing required fields: {', '.join(missing)}",
+                hint=f"Required fields for {block_type}: {', '.join(required)}",
+                location=f"Block {block.get('_block_index', '?')}"
+            ))
+        else:
+            report.add(ValidationResult(
+                passed=True,
+                message=f"{block_type} '{name}' has all required fields"
+            ))
+
+
+class DictBlockValidator(BlockValidationStrategy):
+    """Strategy for validating dict blocks."""
+    
+    def validate(self, block: Dict[str, Any], name: str, report: ValidationReport) -> None:
+        self._validate_required_fields(block, 'dict', name, report)
+        self._validate_data(block, name, report)
+    
+    def _validate_data(self, d: Dict, name: str, report: ValidationReport) -> None:
+        """Validate dict data structure."""
+        data = d.get('data', [])
+        if not isinstance(data, list):
+            report.add(ValidationResult(
+                passed=False,
+                message=f"dict '{name}' data must be a list",
+                hint="Use YAML list syntax: - key: value",
+                location=f"Block {d.get('_block_index', '?')}"
+            ))
+        elif len(data) == 0:
+            report.add(ValidationResult(
+                passed=False,
+                message=f"dict '{name}' has empty data list",
+                hint="Add at least one item to the data list",
+                location=f"Block {d.get('_block_index', '?')}"
+            ))
+        else:
+            report.add(ValidationResult(
+                passed=True,
+                message=f"dict '{name}' has valid data structure ({len(data)} items)"
+            ))
+
+
+class DynamicDictBlockValidator(BlockValidationStrategy):
+    """Strategy for validating dynamic_dict blocks."""
+    
+    def validate(self, block: Dict[str, Any], name: str, report: ValidationReport) -> None:
+        self._validate_required_fields(block, 'dynamic_dict', name, report)
+        self._validate_mapping(block, name, report)
+    
+    def _validate_mapping(self, dd: Dict, name: str, report: ValidationReport) -> None:
+        """Validate dynamic_dict mapping structure."""
+        mapping = dd.get('mapping', {})
+        if not isinstance(mapping, dict):
+            report.add(ValidationResult(
+                passed=False,
+                message=f"dynamic_dict '{name}' mapping must be a dict",
+                hint="Use YAML dict syntax: internal_key: json_key",
+                location=f"Block {dd.get('_block_index', '?')}"
+            ))
+        elif len(mapping) == 0:
+            report.add(ValidationResult(
+                passed=False,
+                message=f"dynamic_dict '{name}' has empty mapping",
+                hint="Add at least one key mapping",
+                location=f"Block {dd.get('_block_index', '?')}"
+            ))
+        else:
+            report.add(ValidationResult(
+                passed=True,
+                message=f"dynamic_dict '{name}' has valid mapping ({len(mapping)} keys)"
+            ))
+
+
+class CommandBlockValidator(BlockValidationStrategy):
+    """Strategy for validating command blocks."""
+    
+    def validate(self, block: Dict[str, Any], name: str, report: ValidationReport) -> None:
+        self._validate_required_fields(block, 'command', name, report)
+        self._validate_subcommands(block.get('sub', []), name, report)
+        self._validate_args(block.get('args', []), name, report)
+    
+    def _validate_subcommands(self, subs: List, parent_name: str, report: ValidationReport) -> None:
+        """Validate subcommand structure recursively."""
+        for i, sub in enumerate(subs):
+            if not isinstance(sub, dict):
+                continue
+            
+            sub_name = sub.get('alias', f'sub_{i}')
+            
+            # Check required fields for sub
+            required = ['alias', 'command']
+            missing = [f for f in required if f not in sub]
+            if missing:
+                report.add(ValidationResult(
+                    passed=False,
+                    message=f"Subcommand '{sub_name}' in '{parent_name}' missing: {', '.join(missing)}",
+                    hint="Subcommands require 'alias' and 'command' fields"
+                ))
+            
+            # Recurse
+            self._validate_subcommands(sub.get('sub', []), f"{parent_name}.{sub_name}", report)
+            self._validate_args(sub.get('args', []), f"{parent_name}.{sub_name}", report)
+    
+    def _validate_args(self, args: List, parent_name: str, report: ValidationReport) -> None:
+        """Validate args structure."""
+        for i, arg in enumerate(args):
+            if not isinstance(arg, dict):
+                continue
+            
+            arg_name = arg.get('alias', f'arg_{i}')
+            
+            # Check required fields
+            required = ['alias', 'command']
+            missing = [f for f in required if f not in arg]
+            if missing:
+                report.add(ValidationResult(
+                    passed=False,
+                    message=f"Arg '{arg_name}' in '{parent_name}' missing: {', '.join(missing)}",
+                    hint="Args require 'alias' and 'command' fields"
+                ))
+            
+            # Args cannot have sub or args (rule 5.2)
+            if 'sub' in arg:
+                report.add(ValidationResult(
+                    passed=False,
+                    message=f"Arg '{arg_name}' in '{parent_name}' cannot have 'sub'",
+                    hint="Args are non-recursive - use subcommands instead"
+                ))
+            if 'args' in arg:
+                report.add(ValidationResult(
+                    passed=False,
+                    message=f"Arg '{arg_name}' in '{parent_name}' cannot have nested 'args'",
+                    hint="Args are non-recursive"
+                ))
+
+
+# Strategy registry for block types
+BLOCK_VALIDATORS: Dict[str, BlockValidationStrategy] = {
+    'dict': DictBlockValidator(),
+    'dynamic_dict': DynamicDictBlockValidator(),
+    'command': CommandBlockValidator(),
+}
+
+
+class ConfigValidator:
+    """Validates dya.yaml configuration files using Strategy pattern."""
     
     def __init__(self, config_path: str):
         self.config_path = config_path
@@ -75,7 +241,7 @@ class ConfigValidator:
         # 3. Parse blocks
         self._parse_blocks()
         
-        # 4. Validate each block structure
+        # 4. Validate each block structure using Strategy pattern
         self._validate_block_structures()
         
         # 5. Validate references (rule 1.1.15)
@@ -138,7 +304,7 @@ class ConfigValidator:
             ))
             return False
     
-    def _parse_blocks(self):
+    def _parse_blocks(self) -> None:
         """Parse config into blocks and categorize them."""
         docs = [doc for doc in self.raw_content.split('---') if doc.strip()]
         
@@ -166,10 +332,10 @@ class ConfigValidator:
             except Exception:
                 pass
     
-    def _validate_block_structures(self):
-        """Validate required fields for each block type."""
+    def _validate_block_structures(self) -> None:
+        """Validate block structures using Strategy pattern."""
         
-        # Validate config block
+        # Validate config block (special case, not a typed block)
         if self.global_config is not None:
             invalid_keys = [k for k in self.global_config.keys() 
                           if k not in CONFIG_KEYS]
@@ -186,140 +352,16 @@ class ConfigValidator:
                     message="Config block has valid keys"
                 ))
         
-        # Validate dicts
+        # Use Strategy pattern for typed blocks
         for name, d in self.dicts.items():
-            self._validate_required_fields(d, 'dict', name)
-            self._validate_dict_data(d, name)
+            BLOCK_VALIDATORS['dict'].validate(d, name, self.report)
         
-        # Validate dynamic_dicts
         for name, dd in self.dynamic_dicts.items():
-            self._validate_required_fields(dd, 'dynamic_dict', name)
-            self._validate_mapping(dd, name)
+            BLOCK_VALIDATORS['dynamic_dict'].validate(dd, name, self.report)
         
-        # Validate commands
         for cmd in self.commands:
             name = cmd.get('name', 'unnamed')
-            self._validate_required_fields(cmd, 'command', name)
-            self._validate_subcommands(cmd.get('sub', []), name)
-            self._validate_args(cmd.get('args', []), name)
-    
-    def _validate_required_fields(self, block: Dict, block_type: str, name: str):
-        """Check required fields exist for a block type."""
-        required = REQUIRED_FIELDS.get(block_type, [])
-        missing = [f for f in required if f not in block]
-        
-        if missing:
-            self.report.add(ValidationResult(
-                passed=False,
-                message=f"{block_type} '{name}' missing required fields: {', '.join(missing)}",
-                hint=f"Required fields for {block_type}: {', '.join(required)}",
-                location=f"Block {block.get('_block_index', '?')}"
-            ))
-        else:
-            self.report.add(ValidationResult(
-                passed=True,
-                message=f"{block_type} '{name}' has all required fields"
-            ))
-    
-    def _validate_dict_data(self, d: Dict, name: str):
-        """Validate dict data structure."""
-        data = d.get('data', [])
-        if not isinstance(data, list):
-            self.report.add(ValidationResult(
-                passed=False,
-                message=f"dict '{name}' data must be a list",
-                hint="Use YAML list syntax: - key: value",
-                location=f"Block {d.get('_block_index', '?')}"
-            ))
-        elif len(data) == 0:
-            self.report.add(ValidationResult(
-                passed=False,
-                message=f"dict '{name}' has empty data list",
-                hint="Add at least one item to the data list",
-                location=f"Block {d.get('_block_index', '?')}"
-            ))
-        else:
-            self.report.add(ValidationResult(
-                passed=True,
-                message=f"dict '{name}' has valid data structure ({len(data)} items)"
-            ))
-    
-    def _validate_mapping(self, dd: Dict, name: str):
-        """Validate dynamic_dict mapping structure."""
-        mapping = dd.get('mapping', {})
-        if not isinstance(mapping, dict):
-            self.report.add(ValidationResult(
-                passed=False,
-                message=f"dynamic_dict '{name}' mapping must be a dict",
-                hint="Use YAML dict syntax: internal_key: json_key",
-                location=f"Block {dd.get('_block_index', '?')}"
-            ))
-        elif len(mapping) == 0:
-            self.report.add(ValidationResult(
-                passed=False,
-                message=f"dynamic_dict '{name}' has empty mapping",
-                hint="Add at least one key mapping",
-                location=f"Block {dd.get('_block_index', '?')}"
-            ))
-        else:
-            self.report.add(ValidationResult(
-                passed=True,
-                message=f"dynamic_dict '{name}' has valid mapping ({len(mapping)} keys)"
-            ))
-    
-    def _validate_subcommands(self, subs: List, parent_name: str):
-        """Validate subcommand structure recursively."""
-        for i, sub in enumerate(subs):
-            if not isinstance(sub, dict):
-                continue
-            
-            sub_name = sub.get('alias', f'sub_{i}')
-            
-            # Check required fields for sub
-            required = ['alias', 'command']
-            missing = [f for f in required if f not in sub]
-            if missing:
-                self.report.add(ValidationResult(
-                    passed=False,
-                    message=f"Subcommand '{sub_name}' in '{parent_name}' missing: {', '.join(missing)}",
-                    hint="Subcommands require 'alias' and 'command' fields"
-                ))
-            
-            # Recurse
-            self._validate_subcommands(sub.get('sub', []), f"{parent_name}.{sub_name}")
-            self._validate_args(sub.get('args', []), f"{parent_name}.{sub_name}")
-    
-    def _validate_args(self, args: List, parent_name: str):
-        """Validate args structure."""
-        for i, arg in enumerate(args):
-            if not isinstance(arg, dict):
-                continue
-            
-            arg_name = arg.get('alias', f'arg_{i}')
-            
-            # Check required fields
-            required = ['alias', 'command']
-            missing = [f for f in required if f not in arg]
-            if missing:
-                self.report.add(ValidationResult(
-                    passed=False,
-                    message=f"Arg '{arg_name}' in '{parent_name}' missing: {', '.join(missing)}",
-                    hint="Args require 'alias' and 'command' fields"
-                ))
-            
-            # Args cannot have sub or args (rule 5.2)
-            if 'sub' in arg:
-                self.report.add(ValidationResult(
-                    passed=False,
-                    message=f"Arg '{arg_name}' in '{parent_name}' cannot have 'sub'",
-                    hint="Args are non-recursive - use subcommands instead"
-                ))
-            if 'args' in arg:
-                self.report.add(ValidationResult(
-                    passed=False,
-                    message=f"Arg '{arg_name}' in '{parent_name}' cannot have nested 'args'",
-                    hint="Args are non-recursive"
-                ))
+            BLOCK_VALIDATORS['command'].validate(cmd, name, self.report)
     
     def _extract_references(self, text: str) -> Set[Tuple[str, str]]:
         """Extract all $${source.key} references from text."""

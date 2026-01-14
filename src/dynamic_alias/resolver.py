@@ -58,7 +58,7 @@ class DataResolver:
             # Circular reference detection
             if name in self._resolution_stack:
                 chain = ' -> '.join(self._resolution_stack) + f' -> {name}'
-                print(f"Error: Circular reference detected in dynamic dict resolution: {chain}")
+                print(f"Warning: Circular reference detected in dynamic dict resolution: {chain}")
                 return []
             
             # Add to resolution stack
@@ -74,9 +74,25 @@ class DataResolver:
                     elapsed = time.time() - start_time
                     if verbose:
                         self.add_verbose_log(f"[VERBOSE] Executed dynamic_dict '{name}' in {elapsed:.2f}s")
+                    
+                    # Warning log for null/empty results
+                    if data is None:
+                        print(f"Warning: dynamic_dict '{name}' returned null")
+                        print(f"  Action: Executed command for dynamic resolution")
+                        print(f"  Command: {dd.command[:100]}{'...' if len(dd.command) > 100 else ''}")
+                        data = []
+                    elif len(data) == 0:
+                        print(f"Warning: dynamic_dict '{name}' returned empty list")
+                        print(f"  Action: Executed command for dynamic resolution")
+                        print(f"  Command: {dd.command[:100]}{'...' if len(dd.command) > 100 else ''}")
+                    
                     self.cache.set(name, data)
                     self.cache.save()
                 else:
+                    # Warning log for cached empty results
+                    if len(data) == 0:
+                        print(f"Warning: dynamic_dict '{name}' has empty cached data")
+                        print(f"  Suggestion: Run --dya-clear-cache to refresh")
                     if verbose:
                         self.add_verbose_log(f"[VERBOSE] Loaded dynamic_dict '{name}' from cache")
                 self.resolved_data[name] = data
@@ -85,6 +101,11 @@ class DataResolver:
                 # Remove from resolution stack
                 self._resolution_stack.discard(name)
         
+        # Warning for undefined source
+        print(f"Warning: Source '{name}' not found in dicts or dynamic_dicts")
+        print(f"  Action: Attempted to resolve data source")
+        print(f"  Available dicts: {list(self.config.dicts.keys())}")
+        print(f"  Available dynamic_dicts: {list(self.config.dynamic_dicts.keys())}")
         return []
 
     def _execute_dynamic_source(self, dd: DynamicDictConfig) -> List[Dict[str, Any]]:
