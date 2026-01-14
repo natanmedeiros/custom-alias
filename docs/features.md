@@ -149,6 +149,71 @@ alias: home
 command: cd $${env.HOME} && ls
 ```
 
+## Config Validator
+
+Validate your configuration file for errors before use.
+
+### Manual Validation
+
+Run the validator with full output:
+
+```bash
+dya --dya-validate
+# Or with custom config:
+dya --dya-validate --dya-config ./path/to/config.yaml
+```
+
+**Example output:**
+```
+============================================================
+  Configuration Validator (dya)
+============================================================
+
+  Config: ./dya.yaml
+
+  VALIDATION CHECKLIST
+  ----------------------------------------
+  [✓] Config file exists: ./dya.yaml
+  [✓] Valid YAML syntax
+  [✓] Config block has valid keys
+  [✓] All dict/dynamic_dict references are valid
+  [✓] Priority order is correct
+
+  ----------------------------------------
+  SUMMARY
+  ----------------------------------------
+
+  ✓ All 5 checks passed!
+
+  Configuration is valid.
+============================================================
+```
+
+### Automatic Silent Validation
+
+At startup (interactive and non-interactive modes), the config is automatically validated. If errors are found, they are displayed and execution stops:
+
+```
+[DYA] Configuration errors found in: ./config.yaml
+--------------------------------------------------
+  ✗ command 'my_command' references undefined source: 'undefined_dict'
+    Location: Block 3
+    Hint: Define a dict or dynamic_dict named 'undefined_dict'
+--------------------------------------------------
+Fix the 1 error(s) above or run 'dya --dya-validate' for full report.
+```
+
+### What is Validated
+
+| Check | Description |
+|-------|-------------|
+| **File exists** | Config file must exist |
+| **Valid YAML** | Syntax must be correct |
+| **Required fields** | Each block type must have required fields |
+| **Config keys** | Only valid keys in config block |
+| **References** | All `$${source.key}` must reference defined sources |
+| **Priority order** | Dynamic dicts must respect priority when referencing others |
+
 ## BOM Handling
 
 Config files with UTF-8 BOM (Byte Order Mark) are automatically handled. This ensures compatibility with files created by Windows editors.
@@ -158,3 +223,4 @@ Config files with UTF-8 BOM (Byte Order Mark) are automatically handled. This en
 | ← Previous | Next → |
 |:-----------|-------:|
 | [Commands](commands.md) | [Interactive Mode](interactive-mode.md) |
+

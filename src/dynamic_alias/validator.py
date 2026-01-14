@@ -1,0 +1,555 @@
+"""
+Config Validator Module
+
+Implements rules 1.1.14, 1.1.15, 1.1.16, 1.1.17:
+- Validate config file structure and keys
+- Check that all referenced dicts/dynamic_dicts are defined
+- Check priority order for dynamic_dict references
+- User-friendly output with checklist, hints, and summary
+"""
+import os
+import re
+import yaml
+from typing import Dict, List, Tuple, Any, Set, Optional
+from dataclasses import dataclass, field
+
+
+@dataclass
+class ValidationResult:
+    """Represents the result of a single validation check."""
+    passed: bool
+    message: str
+    hint: Optional[str] = None
+    location: Optional[str] = None  # e.g., "block 3, line 45"
+
+
+@dataclass
+class ValidationReport:
+    """Complete validation report."""
+    config_path: str
+    results: List[ValidationResult] = field(default_factory=list)
+    
+    @property
+    def passed(self) -> bool:
+        return all(r.passed for r in self.results)
+    
+    @property
+    def passed_count(self) -> int:
+        return sum(1 for r in self.results if r.passed)
+    
+    @property
+    def failed_count(self) -> int:
+        return sum(1 for r in self.results if not r.passed)
+    
+    def add(self, result: ValidationResult):
+        self.results.append(result)
+
+
+class ConfigValidator:
+    """Validates dya.yaml configuration files."""
+    
+    # Required fields per block type
+    REQUIRED_FIELDS = {
+        'dict': ['type', 'name', 'data'],
+        'dynamic_dict': ['type', 'name', 'command', 'mapping'],
+        'command': ['type', 'name', 'alias', 'command'],
+    }
+    
+    # Optional fields per block type
+    OPTIONAL_FIELDS = {
+        'dict': [],
+        'dynamic_dict': ['priority', 'timeout', 'cache-ttl'],
+        'command': ['helper', 'sub', 'args', 'timeout', 'strict'],
+    }
+    
+    # Valid config block keys
+    CONFIG_KEYS = [
+        'style-completion', 'style-completion-current', 
+        'style-scrollbar-background', 'style-scrollbar-button',
+        'style-placeholder-color', 'style-placeholder-text',
+        'history-size', 'verbose'
+    ]
+    
+    def __init__(self, config_path: str):
+        self.config_path = config_path
+        self.report = ValidationReport(config_path=config_path)
+        self.raw_content = ""
+        self.blocks: List[Dict[str, Any]] = []
+        self.dicts: Dict[str, Dict] = {}
+        self.dynamic_dicts: Dict[str, Dict] = {}
+        self.commands: List[Dict] = []
+        self.global_config: Optional[Dict] = None
+    
+    def validate(self) -> ValidationReport:
+        """Run all validations and return report."""
+        
+        # 1. Check file exists
+        if not self._check_file_exists():
+            return self.report
+        
+        # 2. Check valid YAML
+        if not self._check_valid_yaml():
+            return self.report
+        
+        # 3. Parse blocks
+        self._parse_blocks()
+        
+        # 4. Validate each block structure
+        self._validate_block_structures()
+        
+        # 5. Validate references (rule 1.1.15)
+        self._validate_references()
+        
+        # 6. Validate priority order for dynamic_dict references
+        self._validate_priority_order()
+        
+        return self.report
+    
+    def _check_file_exists(self) -> bool:
+        """Check if config file exists."""
+        if os.path.exists(self.config_path):
+            self.report.add(ValidationResult(
+                passed=True,
+                message=f"Config file exists: {self.config_path}"
+            ))
+            return True
+        else:
+            self.report.add(ValidationResult(
+                passed=False,
+                message=f"Config file not found: {self.config_path}",
+                hint="Create the config file or specify correct path with --dya-config"
+            ))
+            return False
+    
+    def _check_valid_yaml(self) -> bool:
+        """Check if file is valid YAML."""
+        try:
+            # Read with BOM handling
+            with open(self.config_path, 'r', encoding='utf-8-sig') as f:
+                self.raw_content = f.read()
+            
+            # Try to parse each document
+            docs = [doc for doc in self.raw_content.split('---') if doc.strip()]
+            
+            for i, doc_str in enumerate(docs, 1):
+                try:
+                    yaml.safe_load(doc_str)
+                except yaml.YAMLError as e:
+                    self.report.add(ValidationResult(
+                        passed=False,
+                        message=f"Invalid YAML syntax in block {i}",
+                        hint=str(e),
+                        location=f"Block {i}"
+                    ))
+                    return False
+            
+            self.report.add(ValidationResult(
+                passed=True,
+                message="Valid YAML syntax"
+            ))
+            return True
+            
+        except Exception as e:
+            self.report.add(ValidationResult(
+                passed=False,
+                message=f"Failed to read config file: {e}",
+                hint="Check file permissions and encoding (UTF-8)"
+            ))
+            return False
+    
+    def _parse_blocks(self):
+        """Parse config into blocks and categorize them."""
+        docs = [doc for doc in self.raw_content.split('---') if doc.strip()]
+        
+        for i, doc_str in enumerate(docs, 1):
+            try:
+                doc = yaml.safe_load(doc_str)
+                if not doc or not isinstance(doc, dict):
+                    continue
+                
+                doc['_block_index'] = i
+                self.blocks.append(doc)
+                
+                # Categorize
+                if 'config' in doc:
+                    self.global_config = doc.get('config', {})
+                elif doc.get('type') == 'dict':
+                    name = doc.get('name', f'unnamed_dict_{i}')
+                    self.dicts[name] = doc
+                elif doc.get('type') == 'dynamic_dict':
+                    name = doc.get('name', f'unnamed_dynamic_dict_{i}')
+                    self.dynamic_dicts[name] = doc
+                elif doc.get('type') == 'command':
+                    self.commands.append(doc)
+                    
+            except Exception:
+                pass
+    
+    def _validate_block_structures(self):
+        """Validate required fields for each block type."""
+        
+        # Validate config block
+        if self.global_config is not None:
+            invalid_keys = [k for k in self.global_config.keys() 
+                          if k not in self.CONFIG_KEYS]
+            if invalid_keys:
+                self.report.add(ValidationResult(
+                    passed=False,
+                    message=f"Unknown config keys: {', '.join(invalid_keys)}",
+                    hint=f"Valid keys: {', '.join(self.CONFIG_KEYS)}",
+                    location="config block"
+                ))
+            else:
+                self.report.add(ValidationResult(
+                    passed=True,
+                    message="Config block has valid keys"
+                ))
+        
+        # Validate dicts
+        for name, d in self.dicts.items():
+            self._validate_required_fields(d, 'dict', name)
+            self._validate_dict_data(d, name)
+        
+        # Validate dynamic_dicts
+        for name, dd in self.dynamic_dicts.items():
+            self._validate_required_fields(dd, 'dynamic_dict', name)
+            self._validate_mapping(dd, name)
+        
+        # Validate commands
+        for cmd in self.commands:
+            name = cmd.get('name', 'unnamed')
+            self._validate_required_fields(cmd, 'command', name)
+            self._validate_subcommands(cmd.get('sub', []), name)
+            self._validate_args(cmd.get('args', []), name)
+    
+    def _validate_required_fields(self, block: Dict, block_type: str, name: str):
+        """Check required fields exist for a block type."""
+        required = self.REQUIRED_FIELDS.get(block_type, [])
+        missing = [f for f in required if f not in block]
+        
+        if missing:
+            self.report.add(ValidationResult(
+                passed=False,
+                message=f"{block_type} '{name}' missing required fields: {', '.join(missing)}",
+                hint=f"Required fields for {block_type}: {', '.join(required)}",
+                location=f"Block {block.get('_block_index', '?')}"
+            ))
+        else:
+            self.report.add(ValidationResult(
+                passed=True,
+                message=f"{block_type} '{name}' has all required fields"
+            ))
+    
+    def _validate_dict_data(self, d: Dict, name: str):
+        """Validate dict data structure."""
+        data = d.get('data', [])
+        if not isinstance(data, list):
+            self.report.add(ValidationResult(
+                passed=False,
+                message=f"dict '{name}' data must be a list",
+                hint="Use YAML list syntax: - key: value",
+                location=f"Block {d.get('_block_index', '?')}"
+            ))
+        elif len(data) == 0:
+            self.report.add(ValidationResult(
+                passed=False,
+                message=f"dict '{name}' has empty data list",
+                hint="Add at least one item to the data list",
+                location=f"Block {d.get('_block_index', '?')}"
+            ))
+        else:
+            self.report.add(ValidationResult(
+                passed=True,
+                message=f"dict '{name}' has valid data structure ({len(data)} items)"
+            ))
+    
+    def _validate_mapping(self, dd: Dict, name: str):
+        """Validate dynamic_dict mapping structure."""
+        mapping = dd.get('mapping', {})
+        if not isinstance(mapping, dict):
+            self.report.add(ValidationResult(
+                passed=False,
+                message=f"dynamic_dict '{name}' mapping must be a dict",
+                hint="Use YAML dict syntax: internal_key: json_key",
+                location=f"Block {dd.get('_block_index', '?')}"
+            ))
+        elif len(mapping) == 0:
+            self.report.add(ValidationResult(
+                passed=False,
+                message=f"dynamic_dict '{name}' has empty mapping",
+                hint="Add at least one key mapping",
+                location=f"Block {dd.get('_block_index', '?')}"
+            ))
+        else:
+            self.report.add(ValidationResult(
+                passed=True,
+                message=f"dynamic_dict '{name}' has valid mapping ({len(mapping)} keys)"
+            ))
+    
+    def _validate_subcommands(self, subs: List, parent_name: str):
+        """Validate subcommand structure recursively."""
+        for i, sub in enumerate(subs):
+            if not isinstance(sub, dict):
+                continue
+            
+            sub_name = sub.get('alias', f'sub_{i}')
+            
+            # Check required fields for sub
+            required = ['alias', 'command']
+            missing = [f for f in required if f not in sub]
+            if missing:
+                self.report.add(ValidationResult(
+                    passed=False,
+                    message=f"Subcommand '{sub_name}' in '{parent_name}' missing: {', '.join(missing)}",
+                    hint="Subcommands require 'alias' and 'command' fields"
+                ))
+            
+            # Recurse
+            self._validate_subcommands(sub.get('sub', []), f"{parent_name}.{sub_name}")
+            self._validate_args(sub.get('args', []), f"{parent_name}.{sub_name}")
+    
+    def _validate_args(self, args: List, parent_name: str):
+        """Validate args structure."""
+        for i, arg in enumerate(args):
+            if not isinstance(arg, dict):
+                continue
+            
+            arg_name = arg.get('alias', f'arg_{i}')
+            
+            # Check required fields
+            required = ['alias', 'command']
+            missing = [f for f in required if f not in arg]
+            if missing:
+                self.report.add(ValidationResult(
+                    passed=False,
+                    message=f"Arg '{arg_name}' in '{parent_name}' missing: {', '.join(missing)}",
+                    hint="Args require 'alias' and 'command' fields"
+                ))
+            
+            # Args cannot have sub or args (rule 5.2)
+            if 'sub' in arg:
+                self.report.add(ValidationResult(
+                    passed=False,
+                    message=f"Arg '{arg_name}' in '{parent_name}' cannot have 'sub'",
+                    hint="Args are non-recursive - use subcommands instead"
+                ))
+            if 'args' in arg:
+                self.report.add(ValidationResult(
+                    passed=False,
+                    message=f"Arg '{arg_name}' in '{parent_name}' cannot have nested 'args'",
+                    hint="Args are non-recursive"
+                ))
+    
+    def _extract_references(self, text: str) -> Set[Tuple[str, str]]:
+        """Extract all $${source.key} references from text."""
+        if not isinstance(text, str):
+            return set()
+        pattern = r'\$\$\{(\w+)\.(\w+)\}'
+        return set(re.findall(pattern, text))
+    
+    def _validate_references(self):
+        """Rule 1.1.15: Check all referenced dicts/dynamic_dicts are defined."""
+        all_sources = set(self.dicts.keys()) | set(self.dynamic_dicts.keys())
+        
+        # Check dynamic_dict commands
+        for name, dd in self.dynamic_dicts.items():
+            cmd = dd.get('command', '')
+            refs = self._extract_references(cmd)
+            for source, key in refs:
+                if source not in all_sources:
+                    self.report.add(ValidationResult(
+                        passed=False,
+                        message=f"dynamic_dict '{name}' references undefined source: '{source}'",
+                        hint=f"Define a dict or dynamic_dict named '{source}'",
+                        location=f"Block {dd.get('_block_index', '?')}"
+                    ))
+        
+        # Check commands
+        for cmd in self.commands:
+            name = cmd.get('name', 'unnamed')
+            alias = cmd.get('alias', '')
+            command_str = cmd.get('command', '')
+            
+            # Check alias and command
+            for text in [alias, command_str]:
+                refs = self._extract_references(text)
+                for source, key in refs:
+                    if source not in all_sources:
+                        self.report.add(ValidationResult(
+                            passed=False,
+                            message=f"command '{name}' references undefined source: '{source}'",
+                            hint=f"Define a dict or dynamic_dict named '{source}'",
+                            location=f"Block {cmd.get('_block_index', '?')}"
+                        ))
+            
+            # Check subcommands and args
+            self._check_sub_references(cmd.get('sub', []), name, all_sources)
+            self._check_arg_references(cmd.get('args', []), name, all_sources)
+        
+        # If we got here without adding failures, add success
+        ref_failures = [r for r in self.report.results 
+                       if not r.passed and 'references undefined' in r.message]
+        if not ref_failures:
+            self.report.add(ValidationResult(
+                passed=True,
+                message="All dict/dynamic_dict references are valid"
+            ))
+    
+    def _check_sub_references(self, subs: List, parent: str, all_sources: Set[str]):
+        """Recursively check references in subcommands."""
+        for sub in subs:
+            if not isinstance(sub, dict):
+                continue
+            for text in [sub.get('alias', ''), sub.get('command', '')]:
+                refs = self._extract_references(text)
+                for source, key in refs:
+                    if source not in all_sources:
+                        self.report.add(ValidationResult(
+                            passed=False,
+                            message=f"Subcommand in '{parent}' references undefined source: '{source}'",
+                            hint=f"Define a dict or dynamic_dict named '{source}'"
+                        ))
+            self._check_sub_references(sub.get('sub', []), parent, all_sources)
+            self._check_arg_references(sub.get('args', []), parent, all_sources)
+    
+    def _check_arg_references(self, args: List, parent: str, all_sources: Set[str]):
+        """Check references in args."""
+        for arg in args:
+            if not isinstance(arg, dict):
+                continue
+            for text in [arg.get('alias', ''), arg.get('command', '')]:
+                refs = self._extract_references(text)
+                for source, key in refs:
+                    if source not in all_sources:
+                        self.report.add(ValidationResult(
+                            passed=False,
+                            message=f"Arg in '{parent}' references undefined source: '{source}'",
+                            hint=f"Define a dict or dynamic_dict named '{source}'"
+                        ))
+    
+    def _validate_priority_order(self):
+        """Check that dynamic_dict references respect priority order."""
+        # Get priorities
+        priorities = {}
+        for name, dd in self.dynamic_dicts.items():
+            priorities[name] = dd.get('priority', 1)
+        
+        # Static dicts have implicit priority 0 (always available)
+        for name in self.dicts.keys():
+            priorities[name] = 0
+        
+        # Check each dynamic_dict
+        for name, dd in self.dynamic_dicts.items():
+            my_priority = priorities[name]
+            cmd = dd.get('command', '')
+            refs = self._extract_references(cmd)
+            
+            for source, key in refs:
+                if source in priorities:
+                    ref_priority = priorities[source]
+                    # Referencing must have higher priority (rule 3.1)
+                    # Higher priority number = later execution
+                    # So reference must have lower priority number
+                    if source in self.dynamic_dicts and ref_priority >= my_priority:
+                        self.report.add(ValidationResult(
+                            passed=False,
+                            message=f"dynamic_dict '{name}' (priority {my_priority}) references '{source}' (priority {ref_priority})",
+                            hint=f"Referenced dynamic_dict must have lower priority. Set '{source}' priority < {my_priority} or '{name}' priority > {ref_priority}",
+                            location=f"Block {dd.get('_block_index', '?')}"
+                        ))
+        
+        # If no priority errors, add success
+        priority_failures = [r for r in self.report.results 
+                           if not r.passed and 'priority' in r.message.lower()]
+        if not priority_failures:
+            self.report.add(ValidationResult(
+                passed=True,
+                message="Priority order is correct for all dynamic_dict references"
+            ))
+
+
+def print_validation_report(report: ValidationReport, shortcut: str = "dya"):
+    """Print user-friendly validation report with checklist format."""
+    
+    print(f"\n{'='*60}")
+    print(f"  Configuration Validator ({shortcut})")
+    print(f"{'='*60}")
+    print(f"\n  Config: {report.config_path}\n")
+    
+    # Print checklist
+    print("  VALIDATION CHECKLIST")
+    print("  " + "-"*40)
+    
+    for result in report.results:
+        status = "✓" if result.passed else "✗"
+        color_start = "" 
+        color_end = ""
+        
+        print(f"  [{status}] {result.message}")
+        
+        if not result.passed:
+            if result.location:
+                print(f"      Location: {result.location}")
+            if result.hint:
+                print(f"      Hint: {result.hint}")
+    
+    # Print summary
+    print(f"\n  " + "-"*40)
+    print(f"  SUMMARY")
+    print(f"  " + "-"*40)
+    
+    total = len(report.results)
+    passed = report.passed_count
+    failed = report.failed_count
+    
+    if report.passed:
+        print(f"\n  ✓ All {total} checks passed!")
+        print(f"\n  Configuration is valid.\n")
+    else:
+        print(f"\n  Results: {passed}/{total} passed, {failed} failed")
+        print(f"\n  ✗ Configuration has {failed} error(s).")
+        print(f"  Please fix the issues above and run validation again.\n")
+    
+    print(f"{'='*60}\n")
+    
+    return 0 if report.passed else 1
+
+
+def print_validation_errors(report: ValidationReport, shortcut: str = "dya"):
+    """Print only errors from validation report (silent mode - only outputs on errors)."""
+    if report.passed:
+        return 0
+    
+    print(f"\n[{shortcut.upper()}] Configuration errors found in: {report.config_path}")
+    print("-" * 50)
+    
+    for result in report.results:
+        if not result.passed:
+            print(f"  ✗ {result.message}")
+            if result.location:
+                print(f"    Location: {result.location}")
+            if result.hint:
+                print(f"    Hint: {result.hint}")
+    
+    print("-" * 50)
+    print(f"Fix the {report.failed_count} error(s) above or run '{shortcut} --{shortcut}-validate' for full report.\n")
+    
+    return 1
+
+
+def validate_config_silent(config_path: str, shortcut: str = "dya") -> bool:
+    """
+    Validate config file in silent mode (only outputs on errors).
+    
+    Used at startup for both interactive and non-interactive modes.
+    Returns True if validation passed, False if there are errors.
+    """
+    validator = ConfigValidator(config_path)
+    report = validator.validate()
+    
+    if not report.passed:
+        print_validation_errors(report, shortcut)
+        return False
+    
+    return True
+

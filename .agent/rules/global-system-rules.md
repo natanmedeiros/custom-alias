@@ -19,6 +19,10 @@ These rules must be applied to every application file
 1.1.11 - Must validate input and remove BOM issue from user created config file
 1.1.12 - At build stage if there is config file defined, must gather together in build to enable custom build execution with default config, wihtout user defining config file.
 1.1.13 - if application was builded with config file attached, config file can be overwrited at execution time with flag --dya-config
+1.1.14 - user can validate its config with --dya-validate or --${shortcut}-validate, and there is a feature that will validate identified config with system rules and config file rules
+1.1.15 - with --${shortcut}-validate validator must check if there is used dict or dynamic dict that is not defined
+1.1.16 - config validator must check if the config file have correct structure and keys
+1.1.17 - config validator must have user friendly output, with checklist, hints pointing to where validation failed together with error cause and at the end, a summary
 1.2 - Application
 1.2.1 - Code must be written in a way that is easy to read, understand, debug and test
 1.2.2 - Create a new const to define if cache is enabled or not and ttl size in seconds

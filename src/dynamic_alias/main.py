@@ -12,6 +12,7 @@ from .cache import CacheManager
 from .resolver import DataResolver
 from .executor import CommandExecutor
 from .shell import InteractiveShell
+from .validator import ConfigValidator, print_validation_report, validate_config_silent
 from .constants import CUSTOM_SHORTCUT, CUSTOM_NAME
 
 # Constants
@@ -26,9 +27,11 @@ def main():
     
     config_flag = f"--{CUSTOM_SHORTCUT}-config"
     cache_flag = f"--{CUSTOM_SHORTCUT}-cache"
+    validate_flag = f"--{CUSTOM_SHORTCUT}-validate"
     
     config_file_override = None
     cache_file_override = None
+    run_validation = False
     
     filtered_args = []
     
@@ -51,6 +54,10 @@ def main():
             else:
                 print(f"Error: {cache_flag} requires an argument")
                 sys.exit(1)
+        elif arg == validate_flag:
+            run_validation = True
+            i += 1
+            continue
         else:
             filtered_args.append(arg)
             i += 1
@@ -91,6 +98,7 @@ def main():
         print(f"  -h, --help               : Display help for commands or global help")
         print(f"  {config_flag} <path>      : Specify custom configuration file")
         print(f"  {cache_flag} <path>       : Specify custom cache file")
+        print(f"  {validate_flag}          : Validate configuration file")
         print(f"  {dya_help_flag}               : Display this command line builder help")
         print("\nDocumentation:")
         print("  https://github.com/natanmedeiros/dynamic-alias?tab=readme-ov-file#documentation")
@@ -99,6 +107,13 @@ def main():
     if dya_help_flag in filtered_args:
         print_dya_help()
         return
+    
+    # Handle --{shortcut}-validate (rules 1.1.14-1.1.17)
+    if run_validation:
+        validator = ConfigValidator(final_config_path)
+        report = validator.validate()
+        exit_code = print_validation_report(report, CUSTOM_SHORTCUT)
+        sys.exit(exit_code)
 
 
 
@@ -171,6 +186,10 @@ def main():
     
     if verbose:
         print(f"[VERBOSE] Loaded configuration from: {final_config_path}")
+    
+    # Silent validation at startup (only outputs if errors found)
+    if not validate_config_silent(final_config_path, CUSTOM_SHORTCUT):
+        sys.exit(1)
     
     cache = CacheManager(final_cache_path, CACHE_ENABLED)
     cache_existed = os.path.exists(final_cache_path)
