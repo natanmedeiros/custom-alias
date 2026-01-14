@@ -84,6 +84,7 @@ config:
     style-placeholder-text: # Placeholder to be display when empty, default "(tab for menu)"
     history-size: # history cache size limit, default 20
     verbose: # Enable verbose output, default false
+    shell: # Enable shell mode to execute direct commands without definition, default false
 
 --- # New config block
 type: dict

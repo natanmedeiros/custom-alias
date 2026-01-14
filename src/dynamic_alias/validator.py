@@ -67,7 +67,7 @@ class ConfigValidator:
         'style-completion', 'style-completion-current', 
         'style-scrollbar-background', 'style-scrollbar-button',
         'style-placeholder-color', 'style-placeholder-text',
-        'history-size', 'verbose'
+        'history-size', 'verbose', 'shell'
     ]
     
     def __init__(self, config_path: str):

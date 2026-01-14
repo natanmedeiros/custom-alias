@@ -46,6 +46,7 @@ class GlobalConfig:
     placeholder_text: str = "(tab for menu)"
     history_size: int = 20  # Rule 1.2.19: Default 20
     verbose: bool = False   # Rule 1.1.10: Verbose logging
+    shell: bool = False     # Rule: Shell mode - execute unrecognized commands directly
 
 @dataclass
 class CommandConfig:

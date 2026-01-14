@@ -171,7 +171,17 @@ class InteractiveShell:
                         self.executor.print_global_help()
                         
                     else:
-                        print("Invalid command.")
+                        # Shell mode: execute unrecognized commands directly in shell
+                        if global_config.shell:
+                            import subprocess
+                            try:
+                                if global_config.verbose:
+                                    print(f"[VERBOSE] Shell mode: executing '{text}'")
+                                subprocess.run(text, shell=True)
+                            except Exception as shell_err:
+                                print(f"Shell error: {shell_err}")
+                        else:
+                            print("Invalid command.")
 
                 except KeyboardInterrupt:
                     continue

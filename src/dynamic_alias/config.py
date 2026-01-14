@@ -86,6 +86,9 @@ class ConfigLoader:
                              
                         if 'verbose' in cfg:
                              self.global_config.verbose = bool(cfg['verbose'])
+                        
+                        if 'shell' in cfg:
+                             self.global_config.shell = bool(cfg['shell'])
                     else:
                         pass # Valid key, but not a config dict (ignoring)
                         
