@@ -10,6 +10,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 's
 
 # Import the actual module using importlib (not the function shadowed by __init__.py)
 main_module = import_module('dynamic_alias.main')
+cli_module = import_module('dynamic_alias.cli') # Import CLI module
 main = main_module.main
 from dynamic_alias.constants import CUSTOM_SHORTCUT
 
@@ -17,7 +18,7 @@ def test_dya_help_flag(capsys):
     # Test --dya-help
     argv = ['script_name', f'--{CUSTOM_SHORTCUT}-help']
     
-    with patch.object(main_module, 'InteractiveShell') as MockShell:
+    with patch.object(cli_module, 'InteractiveShell') as MockShell:
         MockShell.return_value.run.return_value = None
         with patch('sys.argv', argv):
             try:
@@ -39,7 +40,7 @@ def test_global_help_footer(capsys):
     config_path = os.path.join(os.path.dirname(__file__), "dya.yaml")
     argv = ['script_name', '-h', f'--{CUSTOM_SHORTCUT}-config', config_path]
     
-    with patch.object(main_module, 'InteractiveShell') as MockShell:
+    with patch.object(cli_module, 'InteractiveShell') as MockShell:
         MockShell.return_value.run.return_value = None
         with patch('sys.argv', argv):
             try:
@@ -59,7 +60,7 @@ def test_missing_config_with_help(capsys):
     non_existent_config = "/path/to/non_existent_config.yaml"
     argv = ['script_name', '-h', f'--{CUSTOM_SHORTCUT}-config', non_existent_config]
     
-    with patch.object(main_module, 'InteractiveShell') as MockShell:
+    with patch.object(cli_module, 'InteractiveShell') as MockShell:
         MockShell.return_value.run.return_value = None
         with patch('sys.argv', argv):
             try:
@@ -79,7 +80,7 @@ def test_missing_config_without_help(capsys):
     non_existent_config = "/path/to/non_existent_config.yaml"
     argv = ['script_name', f'--{CUSTOM_SHORTCUT}-config', non_existent_config]
     
-    with patch.object(main_module, 'InteractiveShell') as MockShell:
+    with patch.object(cli_module, 'InteractiveShell') as MockShell:
         MockShell.return_value.run.return_value = None
         with patch('sys.argv', argv):
             try:
