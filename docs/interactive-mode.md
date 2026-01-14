@@ -89,6 +89,43 @@ dya> ssh -h
 # Shows help for 'ssh' command
 ```
 
+## Shell Mode
+
+Enable shell mode to execute unrecognized commands directly in the system shell:
+
+```yaml
+config:
+  shell: true
+```
+
+### Behavior
+
+With shell mode **enabled**:
+- Recognized commands → execute as defined in config
+- Unrecognized commands → execute directly in shell
+
+```
+dya> simple           # Recognized: executes defined command
+Running: echo simple
+
+dya> date             # Unrecognized: executes in shell
+Mon Jan 13 22:00:00 -03 2026
+
+dya> ls -la           # Any shell command works
+total 48
+drwxr-xr-x  5 user user 4096 Jan 13 22:00 .
+...
+```
+
+### Use Cases
+
+- Quick one-off shell commands without leaving dya
+- Hybrid workflow: aliases + direct shell access
+- Testing and debugging
+
+> [!NOTE]
+> Shell mode is disabled by default. When disabled, unrecognized commands show "Invalid command."
+
 ## Exiting
 
 Exit the shell:

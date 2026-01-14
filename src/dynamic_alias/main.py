@@ -12,6 +12,7 @@ from .cache import CacheManager
 from .resolver import DataResolver
 from .executor import CommandExecutor
 from .shell import InteractiveShell
+from .validator import ConfigValidator, print_validation_report, validate_config_silent
 from .constants import CUSTOM_SHORTCUT, CUSTOM_NAME
 
 # Constants
@@ -26,9 +27,22 @@ def main():
     
     config_flag = f"--{CUSTOM_SHORTCUT}-config"
     cache_flag = f"--{CUSTOM_SHORTCUT}-cache"
+    validate_flag = f"--{CUSTOM_SHORTCUT}-validate"
+    clear_cache_flag = f"--{CUSTOM_SHORTCUT}-clear-cache"
+    clear_history_flag = f"--{CUSTOM_SHORTCUT}-clear-history"
+    clear_all_flag = f"--{CUSTOM_SHORTCUT}-clear-all"
+    set_locals_flag = f"--{CUSTOM_SHORTCUT}-set-locals"
+    clear_locals_flag = f"--{CUSTOM_SHORTCUT}-clear-locals"
     
     config_file_override = None
     cache_file_override = None
+    run_validation = False
+    run_clear_cache = False
+    run_clear_history = False
+    run_clear_all = False
+    set_locals_key = None
+    set_locals_value = None
+    run_clear_locals = False
     
     filtered_args = []
     
@@ -51,6 +65,36 @@ def main():
             else:
                 print(f"Error: {cache_flag} requires an argument")
                 sys.exit(1)
+        elif arg == validate_flag:
+            run_validation = True
+            i += 1
+            continue
+        elif arg == clear_cache_flag:
+            run_clear_cache = True
+            i += 1
+            continue
+        elif arg == clear_history_flag:
+            run_clear_history = True
+            i += 1
+            continue
+        elif arg == clear_all_flag:
+            run_clear_all = True
+            i += 1
+            continue
+        elif arg == set_locals_flag:
+            # Rule 1.2.26: --set-locals requires key and value
+            if i + 2 < len(args):
+                set_locals_key = args[i+1]
+                set_locals_value = args[i+2]
+                i += 3
+                continue
+            else:
+                print(f"Error: {set_locals_flag} requires <key> <value>")
+                sys.exit(1)
+        elif arg == clear_locals_flag:
+            run_clear_locals = True
+            i += 1
+            continue
         else:
             filtered_args.append(arg)
             i += 1
@@ -81,6 +125,7 @@ def main():
         print("  - Configuration is defined in YAML format.")
         print("  - Supports static dicts, dynamic dicts (via shell commands), and commands.")
         print("  - Commands can use variables from user input values ${var} or dicts/dynamic_dicts $${source.key} syntax.")
+        print("  - Supports persistent local variables via $${locals.key} syntax.")
         print("\nConfiguration Example:")
         print("  ---")
         print("  type: command")
@@ -91,6 +136,12 @@ def main():
         print(f"  -h, --help               : Display help for commands or global help")
         print(f"  {config_flag} <path>      : Specify custom configuration file")
         print(f"  {cache_flag} <path>       : Specify custom cache file")
+        print(f"  {validate_flag}           : Validate configuration file")
+        print(f"  {clear_cache_flag}        : Clear dynamic dict cache (keeps history)")
+        print(f"  {clear_history_flag}      : Clear command history")
+        print(f"  {clear_all_flag}          : Delete entire cache file")
+        print(f"  {set_locals_flag} <k> <v> : Set a local variable")
+        print(f"  {clear_locals_flag}       : Clear all local variables")
         print(f"  {dya_help_flag}               : Display this command line builder help")
         print("\nDocumentation:")
         print("  https://github.com/natanmedeiros/dynamic-alias?tab=readme-ov-file#documentation")
@@ -99,10 +150,59 @@ def main():
     if dya_help_flag in filtered_args:
         print_dya_help()
         return
-
-
-
-    # 3. Bundled Config Enforcement (SHA Check)
+    
+    # Handle --{shortcut}-validate (rules 1.1.14-1.1.17)
+    if run_validation:
+        validator = ConfigValidator(final_config_path)
+        report = validator.validate()
+        exit_code = print_validation_report(report, CUSTOM_SHORTCUT)
+        sys.exit(exit_code)
+    
+    # Handle cache management flags (rules 1.2.21, 1.2.23, 1.2.24)
+    if run_clear_cache or run_clear_history or run_clear_all:
+        cache = CacheManager(final_cache_path, True)
+        cache.load()
+        
+        if run_clear_all:
+            # Rule 1.2.24: Delete entire cache file
+            if cache.delete_all():
+                print(f"Cache file deleted: {final_cache_path}")
+            else:
+                print(f"Cache file not found: {final_cache_path}")
+            return
+        
+        if run_clear_cache:
+            # Rule 1.2.21: Clear non-underscore entries
+            count = cache.clear_cache()
+            print(f"Cleared {count} cache entries (history preserved)")
+        
+        if run_clear_history:
+            # Rule 1.2.23: Clear _history
+            if cache.clear_history():
+                print("Command history cleared")
+            else:
+                print("No history to clear")
+        
+        return
+    
+    # Handle locals management flags (rules 1.2.25, 1.2.26, 1.2.27)
+    if set_locals_key or run_clear_locals:
+        cache = CacheManager(final_cache_path, True)
+        cache.load()
+        
+        if set_locals_key:
+            # Rule 1.2.26: Set local variable
+            cache.set_local(set_locals_key, set_locals_value)
+            print(f"Local variable set: {set_locals_key}={set_locals_value}")
+        
+        if run_clear_locals:
+            # Rule 1.2.27: Clear all locals
+            if cache.clear_locals():
+                print("Local variables cleared")
+            else:
+                print("No local variables to clear")
+        
+        return
     # Rules 1.1.12, 1.1.13 + SHA Enforcement
     bundled_config_path = os.path.join(os.path.dirname(__file__), f"{CUSTOM_SHORTCUT}.yaml")
     user_home_config = os.path.expanduser(f"~/.{CUSTOM_SHORTCUT}.yaml")
@@ -171,6 +271,10 @@ def main():
     
     if verbose:
         print(f"[VERBOSE] Loaded configuration from: {final_config_path}")
+    
+    # Silent validation at startup (only outputs if errors found)
+    if not validate_config_silent(final_config_path, CUSTOM_SHORTCUT):
+        sys.exit(1)
     
     cache = CacheManager(final_cache_path, CACHE_ENABLED)
     cache_existed = os.path.exists(final_cache_path)

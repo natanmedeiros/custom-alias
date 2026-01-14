@@ -30,6 +30,7 @@ class SubCommand:
     helper: Optional[str] = None
     sub: List['SubCommand'] = field(default_factory=list)
     args: List[ArgConfig] = field(default_factory=list)
+    set_locals: bool = False  # Rule 4.21: Capture output as locals
 
 def default_styles():
     return {
@@ -46,6 +47,7 @@ class GlobalConfig:
     placeholder_text: str = "(tab for menu)"
     history_size: int = 20  # Rule 1.2.19: Default 20
     verbose: bool = False   # Rule 1.1.10: Verbose logging
+    shell: bool = False     # Rule: Shell mode - execute unrecognized commands directly
 
 @dataclass
 class CommandConfig:
@@ -57,3 +59,4 @@ class CommandConfig:
     args: List[ArgConfig] = field(default_factory=list)
     timeout: int = 0  # Rule 4.9: Default 0
     strict: bool = False  # Strict mode logic
+    set_locals: bool = False  # Rule 4.21: Capture output as locals

@@ -12,6 +12,7 @@ class DataResolver:
         self.cache = cache
         self.resolved_data: Dict[str, List[Dict[str, Any]]] = {}
         self.verbose_log_buffer: List[str] = []  # Buffer for verbose logs during interactive mode
+        self._resolution_stack: set = set()  # Track currently resolving dicts for circular reference detection
     
     def add_verbose_log(self, message: str):
         """Add a verbose log message to the buffer (for interactive mode)."""
@@ -47,29 +48,42 @@ class DataResolver:
         if name in self.resolved_data:
             return self.resolved_data[name]
         
-        # Check static dicts first
+        # Check static dicts first (no circular reference risk)
         if name in self.config.dicts:
             self.resolved_data[name] = self.config.dicts[name].data
             return self.resolved_data[name]
         
         # Check dynamic dicts
         if name in self.config.dynamic_dicts:
-            dd = self.config.dynamic_dicts[name]
-            data = self.cache.get(name, ttl=dd.cache_ttl)
-            if data is None:
-                import time
-                start_time = time.time()
-                data = self._execute_dynamic_source(dd)
-                elapsed = time.time() - start_time
-                if verbose:
-                    self.add_verbose_log(f"[VERBOSE] Executed dynamic_dict '{name}' in {elapsed:.2f}s")
-                self.cache.set(name, data)
-                self.cache.save()
-            else:
-                if verbose:
-                    self.add_verbose_log(f"[VERBOSE] Loaded dynamic_dict '{name}' from cache")
-            self.resolved_data[name] = data
-            return self.resolved_data[name]
+            # Circular reference detection
+            if name in self._resolution_stack:
+                chain = ' -> '.join(self._resolution_stack) + f' -> {name}'
+                print(f"Error: Circular reference detected in dynamic dict resolution: {chain}")
+                return []
+            
+            # Add to resolution stack
+            self._resolution_stack.add(name)
+            
+            try:
+                dd = self.config.dynamic_dicts[name]
+                data = self.cache.get(name, ttl=dd.cache_ttl)
+                if data is None:
+                    import time
+                    start_time = time.time()
+                    data = self._execute_dynamic_source(dd)
+                    elapsed = time.time() - start_time
+                    if verbose:
+                        self.add_verbose_log(f"[VERBOSE] Executed dynamic_dict '{name}' in {elapsed:.2f}s")
+                    self.cache.set(name, data)
+                    self.cache.save()
+                else:
+                    if verbose:
+                        self.add_verbose_log(f"[VERBOSE] Loaded dynamic_dict '{name}' from cache")
+                self.resolved_data[name] = data
+                return self.resolved_data[name]
+            finally:
+                # Remove from resolution stack
+                self._resolution_stack.discard(name)
         
         return []
 
@@ -96,7 +110,27 @@ class DataResolver:
                 print(f"Error executing dynamic dict '{dd.name}': {result.stderr}")
                 return []
 
-            raw_json = json.loads(result.stdout)
+            # Validate JSON output
+            stdout = result.stdout.strip()
+            if not stdout:
+                print(f"Error in dynamic dict '{dd.name}': Command produced no output")
+                print(f"  Command: {cmd[:100]}{'...' if len(cmd) > 100 else ''}")
+                print(f"  Expected: Valid JSON array or object")
+                return []
+            
+            try:
+                raw_json = json.loads(stdout)
+            except json.JSONDecodeError as json_err:
+                print(f"Error in dynamic dict '{dd.name}': Invalid JSON output")
+                print(f"  Command: {cmd[:100]}{'...' if len(cmd) > 100 else ''}")
+                print(f"  JSON Error: {json_err.msg} at position {json_err.pos}")
+                # Show first 200 chars of output for debugging
+                preview = stdout[:200]
+                if len(stdout) > 200:
+                    preview += "..."
+                print(f"  Output: {preview}")
+                return []
+            
             mapped_data = []
             target_list = raw_json
             if isinstance(raw_json, dict):
@@ -114,6 +148,10 @@ class DataResolver:
                     mapped_data.append(new_item)
             return mapped_data
 
+        except subprocess.TimeoutExpired:
+            print(f"Error in dynamic dict '{dd.name}': Command timed out after {dd.timeout}s")
+            return []
         except Exception as e:
             print(f"Error in dynamic dict '{dd.name}': {e}")
             return []
+

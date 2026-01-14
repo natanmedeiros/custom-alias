@@ -143,3 +143,53 @@ name: Chain Test
 alias: chain-test
 command: echo $${level2_chain.result}
 helper: Tests chaining dict -> dynamic_dict -> dynamic_dict -> command
+
+---
+# ============================================================================
+# LOCALS TEST SECTION (Rules 1.2.25, 1.2.26, 1.2.27)
+# ============================================================================
+
+# Command that sets a local variable by calling dya recursively
+type: command
+name: Set Local Variable
+alias: set-local ${key} ${value}
+command: |
+  .\.venv\Scripts\python.exe dya_dev.py --dya-config ./tests/dya.yaml --dya-cache ./tests/dya.json --dya-set-locals ${key} ${value}
+helper: |
+  Description:
+    Sets a local variable using recursive dya call
+  Usage:
+    dya set-local <key> <value>
+
+---
+# Command that uses a local variable in execution
+type: command
+name: Use Local Variable
+alias: use-local
+command: 'echo Local test_file is: $${locals.test_file}'
+helper: |
+  Description:
+    Uses the local variable 'test_file' in command
+  Usage:
+    dya use-local
+
+---
+# Test Rule 4.21: set-locals from command output
+type: command
+name: Set Locals From JSON
+alias: set-json-locals
+set-locals: true
+command: .\.venv\Scripts\python.exe -c "import json; print(json.dumps({'json_key':'json_value'}))"
+helper: |
+  Description:
+    Sets 'json_key'='json_value' from command output
+  Usage:
+    dya set-json-locals
+
+---
+type: command
+name: Check JSON Local
+alias: check-json-local
+command: echo "Value is $${locals.json_key}"
+helper: Verify json_key value
+

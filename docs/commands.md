@@ -34,6 +34,7 @@ dya hello
 | `helper` | - | Help text for `-h/--help` |
 | `strict` | `false` | Reject extra arguments |
 | `timeout` | `0` | Execution timeout (0 = no limit) |
+| `set-locals` | `false` | Capture output as local variables |
 | `sub` | - | Subcommands |
 | `args` | - | Optional arguments/flags |
 
@@ -71,7 +72,45 @@ Usage:
 ```bash
 dya db production
 # Executes: psql -h db.prod.internal -U app -d main
+dya db production
+# Executes: psql -h db.prod.internal -U app -d main
 ```
+
+## Local Variables
+
+Reference stored local variables with `$${locals.key}`:
+
+```yaml
+---
+type: command
+name: Show Environment
+alias: show-env
+command: echo "Current environment is: $${locals.env}"
+```
+
+### Setting Locals from Command Output
+
+Use `set-locals: true` to capture JSON output and store it as local variables:
+
+```yaml
+---
+type: command
+name: Load Config
+alias: load-config
+set-locals: true
+command: python get_config.py
+helper: Loads configuration into locals
+```
+
+If `get_config.py` outputs:
+```json
+{"env": "production", "region": "us-east-1"}
+```
+
+Then `dya load-config` will store `env` and `region` in the locals cache, making them available for future commands.
+
+> [!NOTE]
+> **Persistence**: Local variables are stored in the application cache file (e.g., `~/.dya.json`) and **persist between sessions**. They do not expire and are only removed if explicitly cleared via `dya --dya-clear-locals` or `dya --dya-clear-all`.
 
 ## Subcommands
 

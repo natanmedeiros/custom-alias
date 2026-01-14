@@ -84,6 +84,7 @@ config:
     style-placeholder-text: # Placeholder to be display when empty, default "(tab for menu)"
     history-size: # history cache size limit, default 20
     verbose: # Enable verbose output, default false
+    shell: # Enable shell mode to execute direct commands without definition, default false
 
 --- # New config block
 type: dict
@@ -118,6 +119,7 @@ alias: # Alias to trigger command, e.g. pg $
 command: # Multi-line command when init with "|" or single line command when missing "|" that will be executed when calls alias, e.g. psql -h $ -p $ -U $ -d $
 timeout: # Command execution timeout, default 0
 helper: # Multi-line helper message when init with "|" or single line helper message when missing "|"
+set-locals: # If true, collect command output, validate as simple json object, cant be array, must be object with one or more keys. Set these keys as _locals in cache file. Default false.
 args: # Command args list
   - alias: # Alias to trigger command args, e.g. -o ${output_filename}
     command: # Multi-line command when init with "|" or single line command when missing "|" that will be executed when calls alias, e.g. -o ${output_filename}

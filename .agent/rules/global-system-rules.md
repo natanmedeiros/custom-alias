@@ -19,6 +19,10 @@ These rules must be applied to every application file
 1.1.11 - Must validate input and remove BOM issue from user created config file
 1.1.12 - At build stage if there is config file defined, must gather together in build to enable custom build execution with default config, wihtout user defining config file.
 1.1.13 - if application was builded with config file attached, config file can be overwrited at execution time with flag --dya-config
+1.1.14 - user can validate its config with --dya-validate or --${shortcut}-validate, and there is a feature that will validate identified config with system rules and config file rules
+1.1.15 - with --${shortcut}-validate validator must check if there is used dict or dynamic dict that is not defined
+1.1.16 - config validator must check if the config file have correct structure and keys
+1.1.17 - config validator must have user friendly output, with checklist, hints pointing to where validation failed together with error cause and at the end, a summary
 1.2 - Application
 1.2.1 - Code must be written in a way that is easy to read, understand, debug and test
 1.2.2 - Create a new const to define if cache is enabled or not and ttl size in seconds
@@ -46,6 +50,13 @@ These rules must be applied to every application file
 1.2.18.4 - CUSTOM_NAME must be used to build helper header
 1.2.19 - cache file must contain _history with command execution history limited to default last 20 but can be replaced by used defined config history-size with max of 1000
 1.2.20 - if _history exists, cache must be appended and shifted only if exceeds history-size
+1.2.21 - There is a system flag called --${shortcut}-clear-cache which if executed must purge cache entries that do not starts with underscore "_" from identified in system path e.g. ~/.${shortcut}.json or ./.${shortcut}.json or etc
+1.2.22 - When try to import cache, if ttl is expired, cache entry must be purged from file
+1.2.23 - There is a system flag called --${shortcut}-clear-history which if executed must purge cache _history entry from file identified in system path e.g. ~/.${shortcut}.json or ./.${shortcut}.json or etc
+1.2.24 - There is a system flag called --${shortcut}-clear-all which if executed must delete cache file identified in system path e.g. ~/.${shortcut}.json or ./.${shortcut}.json or etc
+1.2.25 - There is locals variables defined in cache file as "_locals" and is a key/value storage and can be used with $${locals.$key}, e.g. $${locals.test_filepath}
+1.2.26 - There is a system flag called --${shortcut}-set-locals to be used to set ou replace locals variables, e.g. dya --dya-cache ~/.dya.json --dya-set-locals "my_key" "my_value"
+1.2.27 - There is a system flag called --${shortcut}-clear-locals which if executed must purge cache _locals entry from file identified in system path e.g. ~/.${shortcut}.json or ./.${shortcut}.json or etc
 1.3 - Helper
 1.3.1 - The helper can be displayed by using flag -h or --help
 1.3.2 - Can't use -h or --help as command args, these flags are restricted
@@ -93,3 +104,4 @@ These rules must be applied to every application file
 4.18.1 - e.g. "pg db1 -o " does not autocomplete ${filename}, but after use input ${filename}, autocomplete must continue to work
 4.19 - autocompletion must continue to work for the commands and subs after args usage
 4.20 - commands must be completed, but have to avoid user defined variables completion like ${sql_text} in sentence "pg db1 cmd ${sql_text}"
+4.21 - when set-locals is true, validate if is a valid json simple object and throw an error if not.
