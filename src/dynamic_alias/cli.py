@@ -208,8 +208,11 @@ class DynamicAliasCLI:
             cache = CacheManager(cache_path, True)
             try:
                 cache.load()
-            except Exception: # In case cache doesn't exist and we try to load?
-                 pass # CacheManager load handles existence usually
+            except Exception as e:
+                # Cache load failed - non-fatal, proceed with empty cache
+                print(f"Warning: Failed to load cache for management flags: {e}")
+                print(f"  Action: Attempted to load cache for --{self.clear_cache_flag.lstrip('--')} or related flag")
+                print(f"  Cache path: {cache_path}")
             
             if parsed.clear_all:
                 if cache.delete_all():

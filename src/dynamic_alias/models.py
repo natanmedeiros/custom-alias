@@ -1,8 +1,6 @@
 from dataclasses import dataclass, field
 from typing import Dict, List, Any, Optional
 
-DEFAULT_TIMEOUT = 10
-
 @dataclass
 class DictConfig:
     name: str

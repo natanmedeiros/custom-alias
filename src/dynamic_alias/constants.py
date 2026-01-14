@@ -78,3 +78,9 @@ CONFIG_KEYS = [
     'style-placeholder-color', 'style-placeholder-text',
     'history-size', 'verbose', 'shell'
 ]
+
+# Cache Key Constants (DRY: single source of truth for cache keys)
+CACHE_KEY_HISTORY = '_history'
+CACHE_KEY_LOCALS = '_locals'
+CACHE_KEY_TIMESTAMP = 'timestamp'
+CACHE_KEY_DATA = 'data'

@@ -3,6 +3,7 @@ import shlex
 from prompt_toolkit.completion import Completer, Completion
 from .resolver import DataResolver
 from .executor import CommandExecutor
+from .constants import REGEX_APP_VAR
 
 class DynamicAliasCompleter(Completer):
     def __init__(self, resolver: DataResolver, executor: CommandExecutor):
@@ -13,7 +14,8 @@ class DynamicAliasCompleter(Completer):
         text = document.text_before_cursor
         try:
             parts = shlex.split(text)
-        except:
+        except ValueError:
+            # Invalid quotes or other shlex parsing errors
             return
 
         if not parts:
@@ -159,7 +161,7 @@ class DynamicAliasCompleter(Completer):
                         
                         # Suggestion logic
                         # Dynamic Var $${...}
-                        app_var_match = re.match(r'\$\$\{(\w+)\.(\w+)\}', expected_token_alias)
+                        app_var_match = re.match(REGEX_APP_VAR, expected_token_alias)
                         if app_var_match:
                             source, key = app_var_match.group(1), app_var_match.group(2)
                             # Lazy load: only resolve this dict when needed
@@ -219,7 +221,7 @@ class DynamicAliasCompleter(Completer):
                 head = cand_parts[0]
                 
                 # Handling dynamic vars $${...}
-                app_var_match = re.match(r'\$\$\{(\w+)\.(\w+)\}', head)
+                app_var_match = re.match(REGEX_APP_VAR, head)
                 if app_var_match:
                     source, key = app_var_match.group(1), app_var_match.group(2)
                     # Lazy load: only resolve this dict when needed
