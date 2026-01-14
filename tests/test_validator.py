@@ -327,15 +327,16 @@ mapping:
             validator = ConfigValidator(f.name)
             report = validator.validate()
             
+            # With lazy loading, priority check is just informational
             priority_check = next((r for r in report.results 
-                                  if "Priority order is correct" in r.message), None)
+                                  if "Priority order checked" in r.message), None)
             self.assertIsNotNone(priority_check)
             self.assertTrue(priority_check.passed)
             
         os.unlink(f.name)
     
     def test_invalid_priority_order(self):
-        """Lower priority referencing higher priority should fail."""
+        """Lower priority referencing higher priority should show warning but pass."""
         with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
             f.write("""
 ---
@@ -359,10 +360,12 @@ mapping:
             validator = ConfigValidator(f.name)
             report = validator.validate()
             
-            self.assertFalse(report.passed)
-            priority_check = next((r for r in report.results 
-                                  if "priority" in r.message.lower() and not r.passed), None)
-            self.assertIsNotNone(priority_check)
+            # With lazy loading, priority order is just a warning, validation passes
+            # Check for the WARNING message
+            warning_check = next((r for r in report.results 
+                                 if "WARNING" in r.message and "priority" in r.message.lower()), None)
+            self.assertIsNotNone(warning_check)
+            self.assertTrue(warning_check.passed)  # Warnings have passed=True
             
         os.unlink(f.name)
     

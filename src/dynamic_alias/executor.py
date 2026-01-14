@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 import subprocess
 import shlex
+import json  # Rule 4.21
 from typing import Dict, List, Any, Optional, Union
 from prompt_toolkit.shortcuts import print_formatted_text
 from prompt_toolkit.formatted_text import HTML
@@ -163,6 +164,14 @@ class CommandExecutor:
         def app_var_replace(match):
             source = match.group(1)
             key = match.group(2)
+            
+            # Rule 1.2.25: Handle $${locals.key} specially
+            if source == 'locals':
+                value = self.resolver.cache.get_local(key)
+                if value is not None:
+                    return value
+                return match.group(0)  # Keep original if not found
+            
             # List mode: dict was used in alias, resolve from matched item
             if source in variables and isinstance(variables[source], dict):
                 return str(variables[source].get(key, match.group(0)))
@@ -202,7 +211,52 @@ class CommandExecutor:
             # If timeout is 0, pass None to subprocess.run (means no timeout)
             effective_timeout = timeout if timeout > 0 else None
                 
-            subprocess.run(cmd_resolved, shell=True, timeout=effective_timeout)
+            # Determine if set_locals is enabled for any command in the chain
+            # Usually it applies to the leaf subcommand that is executed
+            should_set_locals = any(getattr(obj, 'set_locals', False) for obj in command_chain)
+
+            if should_set_locals:
+                # Rule 4.21: Capture output, validate as simple JSON object, set locals
+                result = subprocess.run(
+                    cmd_resolved, 
+                    shell=True, 
+                    timeout=effective_timeout,
+                    capture_output=True,
+                    text=True
+                )
+                
+                try:
+                    # Validate JSON
+                    if not result.stdout.strip():
+                         raise ValueError("Empty output")
+                         
+                    output_data = json.loads(result.stdout.strip())
+                    
+                    if not isinstance(output_data, dict):
+                         raise ValueError("Output must be a JSON object (dict), not a list or scalar")
+                    
+                    # Store in locals
+                    for key, value in output_data.items():
+                        self.resolver.cache.set_local(str(key), str(value))
+                    
+                    print(json.dumps(output_data, indent=2))
+                    
+                    # If command failed despite valid JSON (unlikely but possible), print stderr
+                    if result.returncode != 0 and result.stderr:
+                         print(result.stderr)
+                         
+                except json.JSONDecodeError:
+                    print(f"Error: Rule 4.21 - Command output must be valid JSON when set-locals is true.")
+                    print(f"Output received: {result.stdout}")
+                    if result.stderr:
+                        print(f"Stderr: {result.stderr}")
+                except ValueError as ve:
+                    print(f"Error: Rule 4.21 - {ve}")
+                    print(f"Output received: {result.stdout}")
+                    
+            else:
+                # Normal execution
+                subprocess.run(cmd_resolved, shell=True, timeout=effective_timeout)
             
             # Save valid cache state (dynamic dicts)
             self.resolver.cache.save()

@@ -128,7 +128,8 @@ class ConfigLoader:
             sub=subs,
             args=[self._parse_arg(a) for a in doc.get('args', [])],
             timeout=doc.get('timeout', 0), # Rule 4.9
-            strict=doc.get('strict', False)
+            strict=doc.get('strict', False),
+            set_locals=doc.get('set-locals', False) # Rule 4.21
         )
 
     def _parse_subcommand(self, doc: Dict) -> SubCommand:
@@ -141,7 +142,8 @@ class ConfigLoader:
             command=doc['command'],
             helper=doc.get('helper'),
             sub=subs,
-            args=[self._parse_arg(a) for a in doc.get('args', [])]
+            args=[self._parse_arg(a) for a in doc.get('args', [])],
+            set_locals=doc.get('set-locals', False) # Rule 4.21
         )
     
     def _parse_arg(self, doc: Dict) -> ArgConfig:

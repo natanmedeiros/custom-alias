@@ -59,7 +59,7 @@ class ConfigValidator:
     OPTIONAL_FIELDS = {
         'dict': [],
         'dynamic_dict': ['priority', 'timeout', 'cache-ttl'],
-        'command': ['helper', 'sub', 'args', 'timeout', 'strict'],
+        'command': ['helper', 'sub', 'args', 'timeout', 'strict', 'set-locals'],
     }
     
     # Valid config block keys
@@ -349,7 +349,8 @@ class ConfigValidator:
     
     def _validate_references(self):
         """Rule 1.1.15: Check all referenced dicts/dynamic_dicts are defined."""
-        all_sources = set(self.dicts.keys()) | set(self.dynamic_dicts.keys())
+        # Rule 1.2.25: 'locals' is a reserved built-in source for local variables
+        all_sources = set(self.dicts.keys()) | set(self.dynamic_dicts.keys()) | {'locals'}
         
         # Check dynamic_dict commands
         for name, dd in self.dynamic_dicts.items():

@@ -31,6 +31,8 @@ def main():
     clear_cache_flag = f"--{CUSTOM_SHORTCUT}-clear-cache"
     clear_history_flag = f"--{CUSTOM_SHORTCUT}-clear-history"
     clear_all_flag = f"--{CUSTOM_SHORTCUT}-clear-all"
+    set_locals_flag = f"--{CUSTOM_SHORTCUT}-set-locals"
+    clear_locals_flag = f"--{CUSTOM_SHORTCUT}-clear-locals"
     
     config_file_override = None
     cache_file_override = None
@@ -38,6 +40,9 @@ def main():
     run_clear_cache = False
     run_clear_history = False
     run_clear_all = False
+    set_locals_key = None
+    set_locals_value = None
+    run_clear_locals = False
     
     filtered_args = []
     
@@ -74,6 +79,20 @@ def main():
             continue
         elif arg == clear_all_flag:
             run_clear_all = True
+            i += 1
+            continue
+        elif arg == set_locals_flag:
+            # Rule 1.2.26: --set-locals requires key and value
+            if i + 2 < len(args):
+                set_locals_key = args[i+1]
+                set_locals_value = args[i+2]
+                i += 3
+                continue
+            else:
+                print(f"Error: {set_locals_flag} requires <key> <value>")
+                sys.exit(1)
+        elif arg == clear_locals_flag:
+            run_clear_locals = True
             i += 1
             continue
         else:
@@ -120,6 +139,8 @@ def main():
         print(f"  {clear_cache_flag}     : Clear dynamic dict cache (keeps history)")
         print(f"  {clear_history_flag}   : Clear command history")
         print(f"  {clear_all_flag}       : Delete entire cache file")
+        print(f"  {set_locals_flag} <k> <v>  : Set a local variable")
+        print(f"  {clear_locals_flag}    : Clear all local variables")
         print(f"  {dya_help_flag}               : Display this command line builder help")
         print("\nDocumentation:")
         print("  https://github.com/natanmedeiros/dynamic-alias?tab=readme-ov-file#documentation")
@@ -162,10 +183,25 @@ def main():
                 print("No history to clear")
         
         return
-
-
-
-    # 3. Bundled Config Enforcement (SHA Check)
+    
+    # Handle locals management flags (rules 1.2.25, 1.2.26, 1.2.27)
+    if set_locals_key or run_clear_locals:
+        cache = CacheManager(final_cache_path, True)
+        cache.load()
+        
+        if set_locals_key:
+            # Rule 1.2.26: Set local variable
+            cache.set_local(set_locals_key, set_locals_value)
+            print(f"Local variable set: {set_locals_key}={set_locals_value}")
+        
+        if run_clear_locals:
+            # Rule 1.2.27: Clear all locals
+            if cache.clear_locals():
+                print("Local variables cleared")
+            else:
+                print("No local variables to clear")
+        
+        return
     # Rules 1.1.12, 1.1.13 + SHA Enforcement
     bundled_config_path = os.path.join(os.path.dirname(__file__), f"{CUSTOM_SHORTCUT}.yaml")
     user_home_config = os.path.expanduser(f"~/.{CUSTOM_SHORTCUT}.yaml")

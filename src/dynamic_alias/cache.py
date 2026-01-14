@@ -157,4 +157,55 @@ class CacheManager:
             self.save()
         
         return len(keys_to_remove)
+    
+    # =========================================================================
+    # Locals Management (Rules 1.2.25, 1.2.26, 1.2.27)
+    # =========================================================================
+    
+    def set_local(self, key: str, value: str):
+        """
+        Rule 1.2.26: Set or replace a local variable.
+        Locals are stored in _locals key as key/value pairs.
+        """
+        if not self.enabled:
+            return
+        
+        if '_locals' not in self.cache:
+            self.cache['_locals'] = {}
+        
+        self.cache['_locals'][key] = value
+        self.save()
+    
+    def get_local(self, key: str) -> Optional[str]:
+        """
+        Rule 1.2.25: Get a local variable value.
+        Returns None if not found.
+        """
+        if not self.enabled:
+            return None
+        
+        locals_dict = self.cache.get('_locals', {})
+        return locals_dict.get(key)
+    
+    def get_locals(self) -> Dict[str, str]:
+        """
+        Rule 1.2.25: Get all local variables.
+        """
+        if not self.enabled:
+            return {}
+        return self.cache.get('_locals', {})
+    
+    def clear_locals(self) -> bool:
+        """
+        Rule 1.2.27: Purge all local variables.
+        Returns True if locals were removed.
+        """
+        if not self.enabled:
+            return False
+        
+        if '_locals' in self.cache:
+            del self.cache['_locals']
+            self.save()
+            return True
+        return False
 

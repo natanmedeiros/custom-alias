@@ -166,6 +166,16 @@ dya --dya-clear-all
 > [!NOTE]
 > Expired cache entries are automatically purged when loading the cache, based on each dynamic dict's `cache-ttl` setting.
 
+## Locals Management
+
+Store and manage local variables for use in your commands. Locals persist across sessions in the cache file.
+
+For full details, see [Locals Management Coverage](locals.md).
+
+- **Set local:** `dya --dya-set-locals <key> <value>`
+- **Clear locals:** `dya --dya-clear-locals`
+- **Use in command:** `echo $${locals.key}`
+
 ## Environment Variables
 
 Access OS environment variables:
