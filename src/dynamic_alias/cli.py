@@ -300,7 +300,9 @@ class DynamicAliasCLI:
         print("  alias: hello")
         print("  command: echo 'Hello World'")
         print("\nReserved Arguments:")
-        print(f"  -h, --help               : Display help for commands or global help")
+        # Dynamic spacing: 12 fixed + len(shortcut) to align with other flags
+        help_padding = " " * (12 + len(CUSTOM_SHORTCUT))
+        print(f"  -h, --help{help_padding}: Display help for commands or global help")
         print(f"  {self.config_flag} <path>      : Specify custom configuration file")
         print(f"  {self.cache_flag} <path>       : Specify custom cache file")
         print(f"  {self.validate_flag}           : Validate configuration file")
