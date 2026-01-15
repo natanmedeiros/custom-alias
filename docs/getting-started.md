@@ -24,28 +24,13 @@ pip install -e .
 
 ### Build Packages
 
-> **Note:** Building from source requires `setuptools>=61.0` and `pip>=19.3`.
+> **Note:** Building from source requires `setuptools>=61.0` and `pip>=22.0`.
 
 **Python Wheel:**
 ```bash
 python -m build
 pip install dist/dynamic_alias-*.whl
 ```
-
-> [!NOTE]
-> **Older pip versions (19.x - 21.x)** may not create console scripts correctly. Use the `--user` flag for installation:
-> ```bash
-> pip install --user dist/dynamic_alias-*.whl
-> ```
-> 
-> Then add `~/.local/bin` to your `PATH`:
-> 
-> **Bash (~/.bashrc) / Zsh (~/.zshrc):**
-> ```bash
-> export PATH="$HOME/.local/bin:$PATH"
-> ```
-> 
-> Reload your shell: `source ~/.bashrc` or `source ~/.zshrc`
 
 **Debian Package:**
 ```bash
