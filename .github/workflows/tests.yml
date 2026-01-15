@@ -49,7 +49,14 @@ jobs:
     - name: Test package installation with pip 19.3
       run: |
         pip install . --no-cache-dir
-        export PATH="$HOME/.local/bin:$PATH"
+        # Find where pip installed the script
+        echo "=== Searching for dya script ==="
+        find /home/runner -name "dya" 2>/dev/null || true
+        pip show -f dynamic-alias | grep -E "^Location:|dya" || true
+        # Add common script locations to PATH
+        export PATH="$HOME/.local/bin:/usr/local/bin:$PATH"
+        echo "PATH: $PATH"
+        which dya || echo "dya not found in PATH"
         dya --dya-help
     
     - name: Install test dependencies and run tests
