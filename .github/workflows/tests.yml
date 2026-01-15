@@ -8,7 +8,7 @@ permissions:
   contents: read
 
 jobs:
-  # Debian-based tests (Ubuntu)
+  # Debian-based tests (Ubuntu) - Modern pip
   test-ubuntu:
     runs-on: ubuntu-latest
     
@@ -29,7 +29,35 @@ jobs:
     - name: Run tests
       run: pytest -vv
 
-  # CentOS/RHEL-based tests (using Fedora container)
+  # Debian-based tests (Ubuntu) - pip 19.3 (oldest for Python 3.8)
+  test-ubuntu-pip19:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.8'
+    
+    - name: Downgrade to pip 19.3 (oldest for Python 3.8)
+      run: |
+        python -m pip install pip==19.3.1
+        pip --version
+    
+    - name: Test package installation with pip 19.3
+      run: |
+        pip install . --no-cache-dir
+        dya --dya-help
+    
+    - name: Install test dependencies and run tests
+      run: |
+        pip install pytest
+        pip install -r requirements.txt
+        pytest -vv
+
+  # CentOS/RHEL-based tests (using Fedora container) - Modern pip
   test-fedora:
     runs-on: ubuntu-latest
     container:
@@ -48,7 +76,33 @@ jobs:
     - name: Run tests
       run: pytest -vv
 
-  # macOS tests
+  # CentOS/RHEL-based tests - pip 19.3
+  test-fedora-pip19:
+    runs-on: ubuntu-latest
+    container:
+      image: fedora:latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Python and downgrade to pip 19.3
+      run: |
+        dnf install -y python3 python3-pip
+        python3 -m pip install pip==19.3.1
+        pip3 --version
+    
+    - name: Test package installation with pip 19.3
+      run: |
+        pip3 install . --no-cache-dir
+        dya --dya-help
+    
+    - name: Install test dependencies and run tests
+      run: |
+        pip3 install pytest
+        pip3 install -r requirements.txt
+        pytest -vv
+
+  # macOS tests - Modern pip
   test-macos:
     runs-on: macos-latest
     
@@ -68,3 +122,31 @@ jobs:
     
     - name: Run tests
       run: pytest -vv
+
+  # macOS tests - pip 19.3
+  test-macos-pip19:
+    runs-on: macos-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.8'
+    
+    - name: Downgrade to pip 19.3 (oldest for Python 3.8)
+      run: |
+        python -m pip install pip==19.3.1
+        pip --version
+    
+    - name: Test package installation with pip 19.3
+      run: |
+        pip install . --no-cache-dir
+        dya --dya-help
+    
+    - name: Install test dependencies and run tests
+      run: |
+        pip install pytest
+        pip install -r requirements.txt
+        pytest -vv
