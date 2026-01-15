@@ -33,19 +33,19 @@ pip install dist/dynamic_alias-*.whl
 ```
 
 > [!NOTE]
-> **Older pip versions (19.x - 21.x)** install console scripts to `~/.local/bin`, which may not be in your `PATH`. If the `dya` command is not found after installation, add it to your shell configuration:
+> **Older pip versions (19.x - 21.x)** may not create console scripts correctly. Use the `--user` flag for installation:
+> ```bash
+> pip install --user dist/dynamic_alias-*.whl
+> ```
 > 
-> **Bash (~/.bashrc):**
+> Then add `~/.local/bin` to your `PATH`:
+> 
+> **Bash (~/.bashrc) / Zsh (~/.zshrc):**
 > ```bash
 > export PATH="$HOME/.local/bin:$PATH"
 > ```
 > 
-> **Zsh (~/.zshrc):**
-> ```bash
-> export PATH="$HOME/.local/bin:$PATH"
-> ```
-> 
-> Then reload your shell: `source ~/.bashrc` or `source ~/.zshrc`
+> Reload your shell: `source ~/.bashrc` or `source ~/.zshrc`
 
 **Debian Package:**
 ```bash
