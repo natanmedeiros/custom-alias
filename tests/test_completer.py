@@ -65,25 +65,25 @@ class TestDynamicAliasCompleter(unittest.TestCase):
     def test_01_empty_input(self):
         """Test empty input suggestions (Roots)"""
         res = self.get_completions("") 
-        # Should suggest root commands from dya.yaml
-        self.assertIn("simple", res)
-        self.assertIn("consume", res)
-        self.assertIn("dyn", res)
-        self.assertIn("complex", res)
-        self.assertIn("strict", res)
-        self.assertIn("timeout", res)
+        # Should suggest root commands from dya.yaml (with trailing space)
+        self.assertIn("simple ", res)
+        self.assertIn("consume ", res)
+        self.assertIn("dyn ", res)
+        self.assertIn("complex ", res)
+        self.assertIn("strict ", res)
+        self.assertIn("timeout ", res)
 
     def test_02_simple_alias(self):
         """Test simple alias"""
         res = self.get_completions("simple") 
-        self.assertIn("simple", res)
+        self.assertIn("simple ", res)
         
     def test_03_dict_consumer(self):
         """Test consume $${static_envs.name}"""
-        # "consume " -> Suggest envs
+        # "consume " -> Suggest envs (with trailing space)
         res = self.get_completions("consume ")
-        self.assertIn("dev", res)
-        self.assertIn("prod", res)
+        self.assertIn("dev ", res)
+        self.assertIn("prod ", res)
 
     def test_04_complex_structure(self):
         """Test complex structure (args in root)"""
@@ -94,23 +94,23 @@ class TestDynamicAliasCompleter(unittest.TestCase):
 
     def test_05_complex_args(self):
         """Test complex args after var"""
-        # "complex val " -> Suggest --flag, --opt, sub1
+        # "complex val " -> Suggest --flag, --opt, sub1 (with trailing space)
         res = self.get_completions("complex val ")
-        self.assertIn("--flag", res)
-        self.assertIn("--opt", res)
-        self.assertIn("sub1", res)
+        self.assertIn("--flag ", res)
+        self.assertIn("--opt ", res)
+        self.assertIn("sub1 ", res)
 
     def test_06_complex_sub(self):
         """Test recursive sub"""
-        # "complex val sub1 " -> Suggest deep
+        # "complex val sub1 " -> Suggest deep (with trailing space)
         res = self.get_completions("complex val sub1 ")
-        self.assertIn("deep", res)
+        self.assertIn("deep ", res)
 
     def test_07_dynamic_consumer(self):
         """Test dyn $${dynamic_nodes.name}"""
         res = self.get_completions("dyn ")
-        self.assertIn("node-1", res)
-        self.assertIn("node-2", res)
+        self.assertIn("node-1 ", res)
+        self.assertIn("node-2 ", res)
 
     def test_08_complex_arg_value(self):
         """Test arg with user var value"""
@@ -118,11 +118,11 @@ class TestDynamicAliasCompleter(unittest.TestCase):
         res = self.get_completions("complex val --opt ")
         self.assertNotIn("${val}", res)
         
-        # "complex val --opt 123 " -> Resumed, suggest --flag, sub1 (not --opt)
+        # "complex val --opt 123 " -> Resumed, suggest --flag, sub1 (not --opt) with trailing space
         res = self.get_completions("complex val --opt 123 ")
-        self.assertIn("--flag", res)
-        self.assertIn("sub1", res)
-        self.assertNotIn("--opt", res)
+        self.assertIn("--flag ", res)
+        self.assertIn("sub1 ", res)
+        self.assertNotIn("--opt ", res)
 
 if __name__ == '__main__':
     unittest.main()

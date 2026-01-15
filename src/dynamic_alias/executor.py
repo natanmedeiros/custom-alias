@@ -4,6 +4,8 @@ import re
 import subprocess
 import shlex
 import json  # Rule 4.21
+import sys
+import os
 from typing import Dict, List, Any, Optional, Union
 from prompt_toolkit.shortcuts import print_formatted_text
 from prompt_toolkit.formatted_text import HTML
@@ -11,6 +13,29 @@ from .models import CommandConfig, SubCommand, ArgConfig
 from .resolver import DataResolver
 from .utils import VariableResolver
 from .constants import CUSTOM_NAME, CUSTOM_SHORTCUT
+
+
+def _save_terminal_state():
+    """Save current terminal state (Unix only)."""
+    if sys.platform == 'win32':
+        return None
+    try:
+        import termios
+        return termios.tcgetattr(sys.stdin)
+    except Exception:
+        return None
+
+
+def _restore_terminal_state(old_state):
+    """Restore terminal state (Unix only)."""
+    if sys.platform == 'win32' or old_state is None:
+        return
+    try:
+        import termios
+        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_state)
+    except Exception:
+        # Fallback: stty sane
+        os.system('stty sane 2>/dev/null')
 
 class CommandExecutor:
     def __init__(self, data_resolver: DataResolver):
@@ -185,6 +210,10 @@ class CommandExecutor:
         print_formatted_text(HTML(f"<b><green>Running:</green></b> {cmd_resolved}"))
         print("-" * 30)
         
+        # Save terminal state before subprocess execution
+        # This prevents terminal corruption if subprocess is interrupted
+        terminal_state = _save_terminal_state()
+        
         try:
             timeout = 0
             if command_chain and hasattr(command_chain[0], 'timeout'):
@@ -251,6 +280,10 @@ class CommandExecutor:
             print(f"\nError: Command timed out after {timeout}s")
         except Exception as e:
             print(f"Execution error: {e}")
+        finally:
+            # Always restore terminal state after subprocess
+            # This fixes issues where Ctrl+D/Ctrl+C leaves terminal corrupted
+            _restore_terminal_state(terminal_state)
 
     def print_help(self, command_chain: List[Union[CommandConfig, SubCommand, ArgConfig]]):
         """Prints helper text for the matched command chain."""

@@ -8,8 +8,49 @@ permissions:
   contents: read
 
 jobs:
-  python-3-8:
+  # Debian-based tests (Ubuntu)
+  test-ubuntu:
     runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.8'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest
+        pip install -r requirements.txt
+    
+    - name: Run tests
+      run: pytest -vv
+
+  # CentOS/RHEL-based tests (using Fedora container)
+  test-fedora:
+    runs-on: ubuntu-latest
+    container:
+      image: fedora:latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Python and dependencies
+      run: |
+        dnf install -y python3 python3-pip
+        python3 -m pip install --upgrade pip
+        pip3 install pytest
+        pip3 install -r requirements.txt
+    
+    - name: Run tests
+      run: pytest -vv
+
+  # macOS tests
+  test-macos:
+    runs-on: macos-latest
     
     steps:
     - uses: actions/checkout@v4
