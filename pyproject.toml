@@ -8,7 +8,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dynamic_alias"
-version = "0.1.0"
+version = "1.0.0"
 authors = [
   { name="Natan Medeiros", email="natanmedeirosrn@gmail.com" },
 ]
@@ -21,23 +21,42 @@ dependencies = [
     "PyYAML",
 ]
 classifiers = [
-    "Programming Language :: Python :: 3",
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
     "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: System :: Shells",
+    "Topic :: Utilities",
 ]
 keywords = [
     "CLI",
-    "Command Line",
-    "Alias",
-    "Dynamic",
-    "Powerful",
-    "Autocomplete",
-    "Shortcuts",
-    "Declarative",
+    "command-line",
+    "alias",
+    "autocomplete",
+    "shell",
+    "terminal",
+    "devops",
+    "infrastructure",
+    "automation",
 ]
-dynamic = ["scripts"]
+
+[project.urls]
+Homepage = "https://github.com/natanmedeiros/dynamic-alias"
+Repository = "https://github.com/natanmedeiros/dynamic-alias"
+Documentation = "https://github.com/natanmedeiros/dynamic-alias#documentation"
+Issues = "https://github.com/natanmedeiros/dynamic-alias/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
 dynamic_alias = ["*.yaml"]
+

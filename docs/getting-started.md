@@ -5,19 +5,19 @@
 | Requirement | Minimum Version |
 |-------------|----------------|
 | Python | 3.8+ |
-| pip | 19.3+ |
+| pip | 22.0+ |
 | setuptools | 61.0+ (for building from source) |
 
 ## Installation
 
-### From PyPI (Coming Soon)
+### From PyPI
 ```bash
 pip install dynamic-alias
 ```
 
 ### From Source
 ```bash
-git clone https://github.com/your-repo/dynamic-alias.git
+git clone https://github.com/natanmedeiros/dynamic-alias.git
 cd dynamic-alias
 pip install -e .
 ```

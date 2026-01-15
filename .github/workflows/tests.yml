@@ -102,30 +102,8 @@ jobs:
     - name: Run tests
       run: pytest -vv
 
-  # macOS tests - pip 19.3
-  test-macos-pip19:
-    runs-on: macos-latest
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Python 3.8
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.8'
-    
-    - name: Downgrade to pip 19.3 (oldest for Python 3.8)
-      run: |
-        python -m pip install pip==19.3.1
-        pip --version
-    
-    - name: Test package installation with pip 19.3
-      run: |
-        pip install . --no-cache-dir
-        dya --dya-help
-    
-    - name: Install test dependencies and run tests
-      run: |
-        pip install pytest
-        pip install -r requirements.txt
-        pytest -vv
+  # NOTE: pip 19.3 test is only on Ubuntu because:
+  # - pip 19.3 cannot build PyYAML from source on macOS (missing _pyyaml_pep517)
+  # - pip 19.3 requires distutils (removed in Python 3.12, used by Fedora latest)
+  # - The Ubuntu pip19 test with Python 3.8 validates backwards compatibility
+

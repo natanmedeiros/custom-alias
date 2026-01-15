@@ -75,7 +75,7 @@ Create a declarative, customizable CLI for your organization. Define your compan
 ## Roadmap
 
 - [ ] **OS Package Publishing** - Debian (.deb), RPM, Windows installer
-- [ ] **Python Package Publication** - PyPI release
+- [x] **Python Package Publication** - PyPI release
 - [ ] **Homebrew Publication** - macOS/Linux via Homebrew
 
 ## License
