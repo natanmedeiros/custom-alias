@@ -1,5 +1,13 @@
 # Getting Started
 
+## Requirements
+
+| Requirement | Minimum Version |
+|-------------|----------------|
+| Python | 3.8+ |
+| pip | 19.3+ |
+| setuptools | 61.0+ (for building from source) |
+
 ## Installation
 
 ### From PyPI (Coming Soon)
@@ -15,6 +23,8 @@ pip install -e .
 ```
 
 ### Build Packages
+
+> **Note:** Building from source requires `setuptools>=61.0` and `pip>=19.3`.
 
 **Python Wheel:**
 ```bash

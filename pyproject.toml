@@ -15,7 +15,7 @@ authors = [
 description = "Dynamic Alias is a powerful CLI application that allows users to create 'aliases with superpowers'. It transforms complex command-line interactions into simple, autocompletable shortcuts, leveraging dynamic data sources and structured configurations."
 readme = "README.md"
 requires-python = ">=3.8"
-license = "MIT"
+license = {text = "MIT"}
 dependencies = [
     "prompt_toolkit",
     "PyYAML",
