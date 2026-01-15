@@ -32,6 +32,21 @@ python -m build
 pip install dist/dynamic_alias-*.whl
 ```
 
+> [!NOTE]
+> **Older pip versions (19.x - 21.x)** install console scripts to `~/.local/bin`, which may not be in your `PATH`. If the `dya` command is not found after installation, add it to your shell configuration:
+> 
+> **Bash (~/.bashrc):**
+> ```bash
+> export PATH="$HOME/.local/bin:$PATH"
+> ```
+> 
+> **Zsh (~/.zshrc):**
+> ```bash
+> export PATH="$HOME/.local/bin:$PATH"
+> ```
+> 
+> Then reload your shell: `source ~/.bashrc` or `source ~/.zshrc`
+
 **Debian Package:**
 ```bash
 python setup.py --command-packages=stdeb.command bdist_deb

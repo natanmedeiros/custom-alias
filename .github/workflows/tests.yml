@@ -49,6 +49,7 @@ jobs:
     - name: Test package installation with pip 19.3
       run: |
         pip install . --no-cache-dir
+        export PATH="$HOME/.local/bin:$PATH"
         dya --dya-help
     
     - name: Install test dependencies and run tests
