@@ -47,6 +47,7 @@ keywords = [
     "infrastructure",
     "automation",
 ]
+dynamic = ["scripts"]
 
 [project.urls]
 Homepage = "https://github.com/natanmedeiros/dynamic-alias"
