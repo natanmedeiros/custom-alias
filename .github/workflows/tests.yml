@@ -29,8 +29,8 @@ jobs:
     - name: Run tests
       run: pytest -vv
 
-  # Debian-based tests (Ubuntu) - pip 22.0 (oldest supported)
-  test-ubuntu-pip22:
+  # Debian-based tests (Ubuntu) - pip 19.3 (oldest for Python 3.8)
+  test-ubuntu-pip19:
     runs-on: ubuntu-latest
     
     steps:
@@ -41,12 +41,12 @@ jobs:
       with:
         python-version: '3.8'
     
-    - name: Downgrade to pip 22.0 (oldest supported)
+    - name: Downgrade to pip 19.3 (oldest for Python 3.8)
       run: |
-        python -m pip install pip==22.0
+        python -m pip install pip==19.3.1
         pip --version
     
-    - name: Test package installation with pip 22.0
+    - name: Test package installation with pip 19.3
       run: |
         pip install . --no-cache-dir
         dya --dya-help
