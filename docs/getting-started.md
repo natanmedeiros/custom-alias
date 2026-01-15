@@ -1,20 +1,30 @@
 # Getting Started
 
+## Requirements
+
+| Requirement | Minimum Version |
+|-------------|----------------|
+| Python | 3.8+ |
+| pip | 22.0+ |
+| setuptools | 61.0+ (for building from source) |
+
 ## Installation
 
-### From PyPI (Coming Soon)
+### From PyPI
 ```bash
 pip install dynamic-alias
 ```
 
 ### From Source
 ```bash
-git clone https://github.com/your-repo/dynamic-alias.git
+git clone https://github.com/natanmedeiros/dynamic-alias.git
 cd dynamic-alias
 pip install -e .
 ```
 
 ### Build Packages
+
+> **Note:** Building from source requires `setuptools>=61.0` and `pip>=22.0`.
 
 **Python Wheel:**
 ```bash

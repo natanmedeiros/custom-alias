@@ -130,13 +130,13 @@ class DynamicAliasCompleter(Completer):
                             # If expected token is variable `${...}`, Do NOT yield (Rule 4.18)
                             # If expected token is static, yield it if matches prefix
                             if expected_token_alias.startswith('$${'):
-                                yield Completion(expected_token_alias, start_position=-len(prefix), display=expected_token_alias)
+                                yield Completion(expected_token_alias + ' ', start_position=-len(prefix), display=expected_token_alias)
                             elif expected_token_alias.startswith('${'):
                                 # User rule: Args can autocomplete only flags, not user variables
                                 pass 
                             else:
                                 if expected_token_alias.startswith(prefix):
-                                    yield Completion(expected_token_alias, start_position=-len(prefix))
+                                    yield Completion(expected_token_alias + ' ', start_position=-len(prefix))
                             
                             # If we matched a partial arg, we return (exclusive?)
                             return
@@ -169,7 +169,7 @@ class DynamicAliasCompleter(Completer):
                             for item in data:
                                 val = str(item.get(key, ''))
                                 if val.startswith(prefix):
-                                    yield Completion(val, start_position=-len(prefix))
+                                    yield Completion(val + ' ', start_position=-len(prefix))
                         
                         # User Var ${...}
                         elif expected_token_alias.startswith('${'):
@@ -180,7 +180,7 @@ class DynamicAliasCompleter(Completer):
                         # Static Text
                         else:
                             if expected_token_alias.startswith(prefix):
-                                yield Completion(expected_token_alias, start_position=-len(prefix))
+                                yield Completion(expected_token_alias + ' ', start_position=-len(prefix))
                         
                         # If we found a partial command match, we should probably stop?
                         # Or continue to find distinct aliases? 
@@ -229,10 +229,10 @@ class DynamicAliasCompleter(Completer):
                     for item in data:
                         val = str(item.get(key, ''))
                         if val.startswith(prefix):
-                            yield Completion(val, start_position=-len(prefix))
+                            yield Completion(val + ' ', start_position=-len(prefix))
                 elif head.startswith('${'):
                      # User var placeholder as start of command? Rare but possible.
-                     yield Completion(head, start_position=-len(prefix))
+                     yield Completion(head + ' ', start_position=-len(prefix))
                 else:
                     if head.startswith(prefix):
-                        yield Completion(head, start_position=-len(prefix))
+                        yield Completion(head + ' ', start_position=-len(prefix))

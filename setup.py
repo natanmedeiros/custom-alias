@@ -1,10 +1,14 @@
 import re
-from setuptools import setup
+from setuptools import setup, find_packages
 
 def get_config_value(section, key, default):
     try:
         with open("pyproject.toml", "r", encoding="utf-8") as f:
             content = f.read()
+        
+        # Remove BOM if present
+        if content.startswith('\ufeff'):
+            content = content[1:]
         
         # Find section
         section_match = re.search(f'^\\[{section}\\]', content, re.MULTILINE)
@@ -28,6 +32,9 @@ def get_config_value(section, key, default):
         pass
     return default
 
+# Read metadata from pyproject.toml for backwards compatibility with older pip
+PACKAGE_NAME = get_config_value("project", "name", "dynamic_alias")
+PACKAGE_VERSION = get_config_value("project", "version", "0.1.0")
 CUSTOM_SHORTCUT = get_config_value("custom-build", "shortcut", "dya")
 CUSTOM_NAME = get_config_value("custom-build", "name", "DYNAMIC ALIAS")
 
@@ -58,9 +65,14 @@ class CustomBuildPy(build_py):
                     print(f"Cleaning up bundled config: {dst_config}")
                     os.remove(dst_config)
 
-# Setup entry points based on parsed config
+# Setup with explicit metadata for backwards compatibility with older pip versions
+# This ensures pip 22.x and older can correctly identify the package
 
 setup(
+    name=PACKAGE_NAME,
+    version=PACKAGE_VERSION,
+    package_dir={"": "src"},
+    packages=find_packages(where="src"),
     cmdclass={
         'build_py': CustomBuildPy,
     },
@@ -69,4 +81,8 @@ setup(
             f"{CUSTOM_SHORTCUT} = dynamic_alias.main:main",
         ],
     },
+    install_requires=[
+        "prompt_toolkit",
+        "PyYAML",
+    ],
 )

@@ -8,7 +8,8 @@ permissions:
   contents: read
 
 jobs:
-  python-3-8:
+  # Debian-based tests (Ubuntu) - Modern pip
+  test-ubuntu:
     runs-on: ubuntu-latest
     
     steps:
@@ -27,3 +28,82 @@ jobs:
     
     - name: Run tests
       run: pytest -vv
+
+  # Debian-based tests (Ubuntu) - pip 19.3 (oldest for Python 3.8)
+  test-ubuntu-pip19:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.8'
+    
+    - name: Downgrade to pip 19.3 (oldest for Python 3.8)
+      run: |
+        python -m pip install pip==19.3.1
+        pip --version
+    
+    - name: Test package installation with pip 19.3
+      run: |
+        pip install . --no-cache-dir
+        dya --dya-help
+    
+    - name: Install test dependencies and run tests
+      run: |
+        pip install pytest
+        pip install -r requirements.txt
+        pytest -vv
+
+  # CentOS/RHEL-based tests (using Fedora container) - Modern pip
+  test-fedora:
+    runs-on: ubuntu-latest
+    container:
+      image: fedora:latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Python and dependencies
+      run: |
+        dnf install -y python3 python3-pip
+        python3 -m pip install --upgrade pip
+        pip3 install pytest
+        pip3 install -r requirements.txt
+    
+    - name: Run tests
+      run: pytest -vv
+
+  # NOTE: pip 19.3 test is only on Ubuntu with Python 3.8 because:
+  # - pip 19.3 requires distutils which was removed in Python 3.12
+  # - Fedora latest uses Python 3.14+
+  # - The Ubuntu pip19 test already validates backwards compatibility
+
+  # macOS tests - Modern pip
+  test-macos:
+    runs-on: macos-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.8'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest
+        pip install -r requirements.txt
+    
+    - name: Run tests
+      run: pytest -vv
+
+  # NOTE: pip 19.3 test is only on Ubuntu because:
+  # - pip 19.3 cannot build PyYAML from source on macOS (missing _pyyaml_pep517)
+  # - pip 19.3 requires distutils (removed in Python 3.12, used by Fedora latest)
+  # - The Ubuntu pip19 test with Python 3.8 validates backwards compatibility
+
