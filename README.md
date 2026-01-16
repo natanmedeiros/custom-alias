@@ -44,13 +44,13 @@ dya hello
 
 | Topic | Description |
 |-------|-------------|
-| [Getting Started](docs/getting-started.md) | Installation, first config, running |
-| [Configuration](docs/configuration.md) | YAML structure, config block, styles |
-| [Static Dicts](docs/dicts.md) | Defining static data sources |
-| [Dynamic Dicts](docs/dynamic-dicts.md) | Fetching data from external commands, caching, TTL |
-| [Commands](docs/commands.md) | Aliases, subcommands, arguments |
-| [Features](docs/features.md) | Strict mode, timeout, history |
-| [Interactive Mode](docs/interactive-mode.md) | Shell, autocomplete, history navigation |
+| [Getting Started](https://github.com/natanmedeiros/dynamic-alias/blob/main/docs/getting-started.md) | Installation, first config, running |
+| [Configuration](https://github.com/natanmedeiros/dynamic-alias/blob/main/docs/configuration.md) | YAML structure, config block, styles |
+| [Static Dicts](https://github.com/natanmedeiros/dynamic-alias/blob/main/docs/dicts.md) | Defining static data sources |
+| [Dynamic Dicts](https://github.com/natanmedeiros/dynamic-alias/blob/main/docs/dynamic-dicts.md) | Fetching data from external commands, caching, TTL |
+| [Commands](https://github.com/natanmedeiros/dynamic-alias/blob/main/docs/commands.md) | Aliases, subcommands, arguments |
+| [Features](https://github.com/natanmedeiros/dynamic-alias/blob/main/docs/features.md) | Strict mode, timeout, history |
+| [Interactive Mode](https://github.com/natanmedeiros/dynamic-alias/blob/main/docs/interactive-mode.md) | Shell, autocomplete, history navigation |
 
 ## Examples
 
@@ -58,11 +58,11 @@ Real-world configurations for cloud providers:
 
 | Example | Description |
 |---------|-------------|
-| [AWS](docs/examples/aws/) | SSO login, SSM sessions, RDS PostgreSQL, ElastiCache |
-| [GCP](docs/examples/gcp/) | gcloud auth, Compute SSH, Cloud SQL, Memorystore |
-| [Azure](docs/examples/azure/) | az login, VM SSH, PostgreSQL, Redis Cache |
-| [OCI](docs/examples/oci/) | oci session, Compute SSH, Autonomous DB, Redis |
-| [Custom CLI](docs/examples/custom-cli/) | Building your own branded CLI |
+| [AWS](https://github.com/natanmedeiros/dynamic-alias/tree/main/docs/examples/aws/) | SSO login, SSM sessions, RDS PostgreSQL, ElastiCache |
+| [GCP](https://github.com/natanmedeiros/dynamic-alias/tree/main/docs/examples/gcp/) | gcloud auth, Compute SSH, Cloud SQL, Memorystore |
+| [Azure](https://github.com/natanmedeiros/dynamic-alias/tree/main/docs/examples/azure/) | az login, VM SSH, PostgreSQL, Redis Cache |
+| [OCI](https://github.com/natanmedeiros/dynamic-alias/tree/main/docs/examples/oci/) | oci session, Compute SSH, Autonomous DB, Redis |
+| [Custom CLI](https://github.com/natanmedeiros/dynamic-alias/tree/main/docs/examples/custom-cli/) | Building your own branded CLI |
 
 ## Use Cases
 
@@ -80,4 +80,4 @@ Create a declarative, customizable CLI for your organization. Define your compan
 
 ## License
 
-MIT License - See [LICENSE](LICENSE) for details.
+MIT License - See [LICENSE](https://github.com/natanmedeiros/dynamic-alias/blob/main/LICENSE) for details.
