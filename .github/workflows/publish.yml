@@ -34,8 +34,7 @@ jobs:
   publish:
     needs: test  # Only run after tests pass
     runs-on: ubuntu-latest
-    environment:
-      name: main  # Uses secrets from 'main' environment
+    # Note: PYPI_TOKEN must be configured as a repository secret
     
     steps:
     - uses: actions/checkout@v4
