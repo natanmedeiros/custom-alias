@@ -71,7 +71,7 @@ REQUIRED_FIELDS = {
 OPTIONAL_FIELDS = {
     'dict': [],
     'dynamic_dict': ['priority', 'timeout', 'cache-ttl'],
-    'command': ['helper', 'sub', 'args', 'timeout', 'strict', 'set-locals'],
+    'command': ['helper', 'helper_type', 'sub', 'args', 'timeout', 'strict', 'set-locals'],
 }
 
 CONFIG_KEYS = [

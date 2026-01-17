@@ -261,5 +261,5 @@ Config files with UTF-8 BOM (Byte Order Mark) are automatically handled. This en
 
 | ← Previous | Next → |
 |:-----------|-------:|
-| [Commands](commands.md) | [Interactive Mode](interactive-mode.md) |
+| [Helper System](helper.md) | [Interactive Mode](interactive-mode.md) |
 

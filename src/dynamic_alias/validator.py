@@ -179,7 +179,8 @@ class CommandBlockValidator(BlockValidationStrategy):
             if not isinstance(arg, dict):
                 continue
             
-            arg_name = arg.get('alias', f'arg_{i}')
+            arg_alias = arg.get('alias', f'arg_{i}')
+            arg_name = arg_alias if isinstance(arg_alias, str) else str(arg_alias)
             
             # Check required fields
             required = ['alias', 'command']
@@ -190,6 +191,10 @@ class CommandBlockValidator(BlockValidationStrategy):
                     message=f"Arg '{arg_name}' in '{parent_name}' missing: {', '.join(missing)}",
                     hint="Args require 'alias' and 'command' fields"
                 ))
+            
+            # Validate alias array structure if alias is a list
+            if 'alias' in arg:
+                self._validate_alias_array(arg['alias'], parent_name, report)
             
             # Args cannot have sub or args (rule 5.2)
             if 'sub' in arg:
@@ -203,6 +208,41 @@ class CommandBlockValidator(BlockValidationStrategy):
                     passed=False,
                     message=f"Arg '{arg_name}' in '{parent_name}' cannot have nested 'args'",
                     hint="Args are non-recursive"
+                ))
+    
+    def _validate_alias_array(self, alias, parent_name: str, report: ValidationReport) -> None:
+        """Validate that all aliases in an array have the same variable structure."""
+        if not isinstance(alias, list):
+            return  # Single string alias, nothing to validate
+        
+        if len(alias) < 2:
+            return  # Single item list, nothing to compare
+        
+        import re
+        var_pattern = r'\$\{(\w+)\}|\$\$\{(\w+)(?:\[\d+\])?\.(\w+)\}'
+        
+        def extract_var_structure(text: str) -> str:
+            """Extract variable structure from alias (order and names preserved)."""
+            matches = re.findall(var_pattern, text)
+            # Return a normalized structure string
+            vars_list = []
+            for match in matches:
+                if match[0]:  # User variable ${var}
+                    vars_list.append(f"${{{match[0]}}}")
+                elif match[1]:  # App variable $${source.key}
+                    vars_list.append(f"$${{{match[1]}.{match[2]}}}")
+            return '|'.join(vars_list)
+        
+        # Get structure from first alias
+        first_structure = extract_var_structure(alias[0])
+        
+        for idx, alt_alias in enumerate(alias[1:], start=1):
+            alt_structure = extract_var_structure(alt_alias)
+            if alt_structure != first_structure:
+                report.add(ValidationResult(
+                    passed=False,
+                    message=f"Arg alias array in '{parent_name}' has inconsistent variable structure",
+                    hint=f"All aliases must have same variables. '{alias[0]}' has '{first_structure or '(none)'}' but '{alt_alias}' has '{alt_structure or '(none)'}'"
                 ))
 
 

@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Union
 
 @dataclass
 class DictConfig:
@@ -17,7 +17,7 @@ class DynamicDictConfig:
 
 @dataclass
 class ArgConfig:
-    alias: str
+    alias: Union[str, List[str]]  # Can be single string or array of aliases
     command: str
     helper: Optional[str] = None
 
@@ -53,8 +53,10 @@ class CommandConfig:
     alias: str
     command: str
     helper: Optional[str] = None
+    helper_type: str = "auto"  # "auto" or "custom" - only affects command-specific help
     sub: List[SubCommand] = field(default_factory=list)
     args: List[ArgConfig] = field(default_factory=list)
     timeout: int = 0  # Rule 4.9: Default 0
     strict: bool = False  # Strict mode logic
     set_locals: bool = False  # Rule 4.21: Capture output as locals
+

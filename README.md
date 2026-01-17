@@ -49,6 +49,7 @@ dya hello
 | [Static Dicts](https://github.com/natanmedeiros/dynamic-alias/blob/main/docs/dicts.md) | Defining static data sources |
 | [Dynamic Dicts](https://github.com/natanmedeiros/dynamic-alias/blob/main/docs/dynamic-dicts.md) | Fetching data from external commands, caching, TTL |
 | [Commands](https://github.com/natanmedeiros/dynamic-alias/blob/main/docs/commands.md) | Aliases, subcommands, arguments |
+| [Helper System](https://github.com/natanmedeiros/dynamic-alias/blob/main/docs/helper.md) | Auto/custom helper types, array aliases |
 | [Features](https://github.com/natanmedeiros/dynamic-alias/blob/main/docs/features.md) | Strict mode, timeout, history |
 | [Interactive Mode](https://github.com/natanmedeiros/dynamic-alias/blob/main/docs/interactive-mode.md) | Shell, autocomplete, history navigation |
 
@@ -74,8 +75,9 @@ Create a declarative, customizable CLI for your organization. Define your compan
 
 ## Roadmap
 
+### Upcoming
+- [ ] **Cache Encryption** - Secure cache file with user-defined encryption key or PEM file
 - [ ] **OS Package Publishing** - Debian (.deb), RPM, Windows installer
-- [x] **Python Package Publication** - PyPI release
 - [ ] **Homebrew Publication** - macOS/Linux via Homebrew
 
 ## License

@@ -124,10 +124,11 @@ strict: # Default false. If false, user can input text to be concat at the end o
 alias: # Alias to trigger command, e.g. pg $
 command: # Multi-line command when init with "|" or single line command when missing "|" that will be executed when calls alias, e.g. psql -h $ -p $ -U $ -d $
 timeout: # Command execution timeout, default 0
+helper_type: # Accepts auto or custom, default auto. must respect @helper-rules.md template
 helper: # Multi-line helper message when init with "|" or single line helper message when missing "|"
 set-locals: # If true, collect command output, validate as simple json object, cant be array, must be object with one or more keys. Set these keys as _locals in cache file. Default false.
 args: # Command args list
-  - alias: # Alias to trigger command args, e.g. -o ${output_filename}
+  - alias: # Alias to trigger command args, can be simple value or array with multiple values, e.g. -o ${output_filename} or ["-o ${output_filename}","--output ${output_filename}"]
     command: # Multi-line command when init with "|" or single line command when missing "|" that will be executed when calls alias, e.g. -o ${output_filename}
     helper: # Multi-line helper message when init with "|" or single line helper message when missing "|"
   - alias: # Alias to trigger command args, e.g. -v

@@ -175,6 +175,22 @@ Usage:
 dya ls -l -a          # ls -l -a
 ```
 
+### Array Aliases
+
+Arguments can define multiple aliases using an array:
+
+```yaml
+args:
+  - alias: ["-o ${file}", "--output ${file}"]
+    command: -o ${file}
+    helper: Specify output file
+  - alias: ["-v", "--verbose"]
+    command: --verbose
+    helper: Enable verbose mode
+```
+
+Both `-o` and `--output` will trigger the same arg. See [Helper System](helper.md) for display format.
+
 > [!IMPORTANT]
 > Arguments are **scoped to their parent** command or subcommand. An `arg` defined on a parent command cannot be used after a subcommand. Args must always be at the same level as their parent.
 >
@@ -329,4 +345,4 @@ helper: |
 
 | ← Previous | Next → |
 |:-----------|-------:|
-| [Dynamic Dicts](dynamic-dicts.md) | [Features](features.md) |
+| [Dynamic Dicts](dynamic-dicts.md) | [Helper System](helper.md) |

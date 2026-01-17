@@ -437,5 +437,92 @@ class TestValidatorReport(unittest.TestCase):
                        f"Validation failed: {[r.message for r in report.results if not r.passed]}")
 
 
+class TestValidatorArrayAlias(unittest.TestCase):
+    """Test args.alias array validation."""
+    
+    def test_valid_array_alias_same_vars(self):
+        """Array aliases with same variable structure should pass."""
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+            f.write("""
+---
+type: command
+name: Valid Array
+alias: test
+command: echo test
+args:
+  - alias: ["-o ${file}", "--output ${file}"]
+    command: -o ${file}
+    helper: Output file
+  - alias: ["-v", "--verbose"]
+    command: --verbose
+    helper: Verbose mode
+""")
+            f.flush()
+            
+            validator = ConfigValidator(f.name)
+            report = validator.validate()
+            
+            # Should not have array alias errors
+            array_errors = [r for r in report.results 
+                          if "inconsistent variable structure" in r.message]
+            self.assertEqual(len(array_errors), 0)
+            
+        os.unlink(f.name)
+    
+    def test_invalid_array_alias_different_vars(self):
+        """Array aliases with different variable structure should fail."""
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+            f.write("""
+---
+type: command
+name: Invalid Array
+alias: test
+command: echo test
+args:
+  - alias: ["-o ${file}", "--output"]
+    command: -o ${file}
+    helper: Output file - INVALID
+""")
+            f.flush()
+            
+            validator = ConfigValidator(f.name)
+            report = validator.validate()
+            
+            # Should have array alias error
+            array_errors = [r for r in report.results 
+                          if "inconsistent variable structure" in r.message]
+            self.assertEqual(len(array_errors), 1)
+            self.assertFalse(array_errors[0].passed)
+            
+        os.unlink(f.name)
+    
+    def test_invalid_array_alias_different_var_count(self):
+        """Array aliases with different number of variables should fail."""
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+            f.write("""
+---
+type: command
+name: Invalid Var Count
+alias: test
+command: echo test
+args:
+  - alias: ["-i ${input} ${output}", "--input ${input}"]
+    command: -i ${input}
+    helper: Input file - INVALID (different var count)
+""")
+            f.flush()
+            
+            validator = ConfigValidator(f.name)
+            report = validator.validate()
+            
+            # Should have array alias error
+            array_errors = [r for r in report.results 
+                          if "inconsistent variable structure" in r.message]
+            self.assertEqual(len(array_errors), 1)
+            
+        os.unlink(f.name)
+
+
 if __name__ == '__main__':
     unittest.main()
+
