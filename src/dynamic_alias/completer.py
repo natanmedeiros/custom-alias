@@ -163,7 +163,8 @@ class DynamicAliasCompleter(Completer):
                         # Dynamic Var $${...}
                         app_var_match = re.match(REGEX_APP_VAR, expected_token_alias)
                         if app_var_match:
-                            source, key = app_var_match.group(1), app_var_match.group(2)
+                            # Groups: (1) source, (2) optional index, (3) key
+                            source, key = app_var_match.group(1), app_var_match.group(3)
                             # Lazy load: only resolve this dict when needed
                             data = self.resolver.resolve_one(source)
                             for item in data:
@@ -223,7 +224,8 @@ class DynamicAliasCompleter(Completer):
                 # Handling dynamic vars $${...}
                 app_var_match = re.match(REGEX_APP_VAR, head)
                 if app_var_match:
-                    source, key = app_var_match.group(1), app_var_match.group(2)
+                    # Groups: (1) source, (2) optional index, (3) key
+                    source, key = app_var_match.group(1), app_var_match.group(3)
                     # Lazy load: only resolve this dict when needed
                     data = self.resolver.resolve_one(source)
                     for item in data:

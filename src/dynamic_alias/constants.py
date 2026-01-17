@@ -56,7 +56,9 @@ def get_config_from_toml():
 CUSTOM_SHORTCUT, CUSTOM_NAME = get_config_from_toml()
 
 # Regex Patterns
-REGEX_APP_VAR = r'\$\$\{(\w+)\.(\w+)\}'  # Matches $${source.key}
+# Matches $${source.key} OR $${source[N].key} for indexed access
+# Groups: (1) source, (2) index or None, (3) key
+REGEX_APP_VAR = r'\$\$\{(\w+)(?:\[(\d+)\])?\.(\w+)\}'
 REGEX_USER_VAR = r'\$\{(\w+)\}'          # Matches ${var}
 
 # Configuration CONSTANTS (Moved from validator.py)

@@ -77,7 +77,7 @@ Running: ssh ec2-user@10.0.1.50
 
 ### Direct Mode (Dict NOT in Alias)
 
-When you reference the dict **only in the command**, it always accesses the **first item (position 0)**:
+When you reference the dict **only in the command**, it accesses a specific position. By default, position 0 (first item):
 
 ```yaml
 ---
@@ -100,15 +100,26 @@ dya> k8s-context
 Running: echo "Current context: prod-cluster"
 ```
 
+#### Indexed Access
+
+You can specify which position to access using `[N]` syntax:
+
+| Syntax | Position Accessed |
+|--------|-------------------|
+| `$${dict.key}` | Position 0 (default) |
+| `$${dict[0].key}` | Position 0 (explicit) |
+| `$${dict[1].key}` | Position 1 (second item) |
+| `$${dict[2].key}` | Position 2 (third item) |
+
 > [!IMPORTANT]
-> In **direct mode**, even if the dynamic dict returns multiple items, it **always accesses position 0** (the first item).
+> Positions are **0-indexed**: first item = `[0]`, second = `[1]`, third = `[2]`, etc.
 
 ### Mode Comparison
 
 | Mode | Dict in Alias | Behavior |
 |------|---------------|----------|
 | **List** | ✓ Yes | User selects item; all keys from same item |
-| **Direct** | ✗ No | Always uses first item (position 0) |
+| **Direct** | ✗ No | Uses position 0 by default, or `[N]` for specific position |
 
 ## Mapping
 

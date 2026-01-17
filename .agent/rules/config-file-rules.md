@@ -15,9 +15,15 @@ This file defines the rules for creating a new `dya.yaml` or user-defined config
 1.  **User Input**: Use ` ${variable_name} ` for values the user must provide via CLI (e.g., ` ${filename} `).
     - Used in `alias` to define expected input.
     - Used in `command` to insert the input.
-2.  **Internal/Config Variables**: Use ` $ ` for values referenced from the configuration itself.
-    - **Dict Reference**: ` $ ` (e.g., ` $ `).
-    - **Environment**: ` $ ` to access OS environment variables.
+2.  **Internal/Config Variables**: Use ` $$ ` for values referenced from the configuration itself.
+    - **List Mode** (alias): ` $${dictname.key} ` - selects item from autocomplete list
+    - **Direct Mode** (command): Access data directly by position
+      - ` $${dictname.key} ` = same as ` $${dictname[0].key} ` (default position 0)
+      - ` $${dictname[N].key} ` = access position N (e.g., ` $${servers[2].host} `)
+    - **Environment**: ` $${env.MY_ENV} ` to access OS environment variables.
+    - **Locals**: ` $${locals.myvar} ` to access local variables from cache.
+
+> **Note**: Positions are **0-indexed** (start at 0, not 1). First item = `[0]`, second = `[1]`, etc.
 
 ## 3. Reference Logic
 1.  **Dict/DynamicDict References**:

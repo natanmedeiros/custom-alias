@@ -69,7 +69,7 @@ The user selects `prod`, so `$${servers.user}` resolves to `admin` and `$${serve
 
 ### Direct Mode (Dict NOT in Alias)
 
-When you reference the dict **only in the command** (not in alias), it always accesses the **first item (position 0)** of the data list:
+When you reference the dict **only in the command** (not in alias), it accesses a specific position. By default, position 0 (first item):
 
 ```yaml
 ---
@@ -93,32 +93,48 @@ dya> api-call
 Running: curl -H "Authorization: MY_API_KEY" https://api.example.com
 ```
 
-> [!IMPORTANT]
-> In **direct mode**, even if the dict has multiple items, it **always accesses position 0** (the first item).
+#### Indexed Access
 
-**Example with multiple items (only first is used):**
+You can specify which position to access using `[N]` syntax:
+
+| Syntax | Position Accessed |
+|--------|-------------------|
+| `$${dict.key}` | Position 0 (default) |
+| `$${dict[0].key}` | Position 0 (explicit) |
+| `$${dict[1].key}` | Position 1 (second item) |
+| `$${dict[2].key}` | Position 2 (third item) |
+
+> [!IMPORTANT]
+> Positions are **0-indexed**: first item = `[0]`, second = `[1]`, third = `[2]`, etc.
+
+**Example accessing different positions:**
 
 ```yaml
 ---
 type: dict
 name: regions
 data:
-  - name: us-east-1    # ← Position 0 (used in direct mode)
+  - name: us-east-1       # Position [0]
     endpoint: https://us-east-1.api.com
-  - name: eu-west-1    # ← Position 1 (ignored in direct mode)
+  - name: eu-west-1       # Position [1]
     endpoint: https://eu-west-1.api.com
+  - name: ap-southeast-1  # Position [2]
+    endpoint: https://ap-southeast-1.api.com
 
 ---
 type: command
-name: Default Region
-alias: default-region              # ← No dict in alias
-command: echo "Using region: $${regions.name}"
+name: Multi Region
+alias: multi-region
+command: |
+  echo "Primary: $${regions[0].name}"
+  echo "Secondary: $${regions[1].name}"
+  echo "Tertiary: $${regions[2].name}"
 ```
 
 **Usage:**
 ```
-dya> default-region
-Running: echo "Using region: us-east-1"   # Always uses position 0
+dya> multi-region
+Running: echo "Primary: us-east-1" && echo "Secondary: eu-west-1" && echo "Tertiary: ap-southeast-1"
 ```
 
 ## Mode Comparison
@@ -126,7 +142,7 @@ Running: echo "Using region: us-east-1"   # Always uses position 0
 | Mode | Dict in Alias | Behavior |
 |------|---------------|----------|
 | **List** | ✓ Yes | User selects item; all keys from same item |
-| **Direct** | ✗ No | Always uses first item (position 0) |
+| **Direct** | ✗ No | Uses position 0 by default, or `[N]` for specific position |
 
 ## Multiple Keys
 

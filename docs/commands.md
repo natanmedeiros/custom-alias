@@ -72,9 +72,14 @@ Usage:
 ```bash
 dya db production
 # Executes: psql -h db.prod.internal -U app -d main
-dya db production
-# Executes: psql -h db.prod.internal -U app -d main
 ```
+
+> [!TIP]
+> **Indexed Access**: Use `$${source[N].key}` to access a specific position. Positions are **0-indexed**.
+> - `$${dict.key}` = position 0 (default)
+> - `$${dict[1].key}` = position 1 (second item)
+> 
+> See [Static Dicts](dicts.md#indexed-access) for detailed examples.
 
 ## Local Variables
 

@@ -50,10 +50,11 @@ class CommandExecutor:
         # Iterate over available input parts. If input is shorter, matched will be decided by length check at end,
         # unless we find a help flag which shortcuts the process.
         for i, (alias_token, user_token) in enumerate(zip(alias_parts, input_parts)):
-            # 1. Check for app variable: $${source.key}
+            # 1. Check for app variable: $${source.key} or $${source[N].key}
             app_var = VariableResolver.parse_app_var(alias_token)
             if app_var:
-                source_name, key_name = app_var
+                # Note: index is ignored for list mode (alias matching uses all items)
+                source_name, _index, key_name = app_var
 
                 # Rule 1.3.5: Partial match help for dynamic variables too
                 if user_token in ('-h', '--help'):
