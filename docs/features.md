@@ -216,13 +216,12 @@ dya --dya-validate --dya-config ./path/to/config.yaml
   [✓] Valid YAML syntax
   [✓] Config block has valid keys
   [✓] All dict/dynamic_dict references are valid
-  [✓] Priority order is correct
 
   ----------------------------------------
   SUMMARY
   ----------------------------------------
 
-  ✓ All 5 checks passed!
+  ✓ All 4 checks passed!
 
   Configuration is valid.
 ============================================================
@@ -251,7 +250,6 @@ Fix the 1 error(s) above or run 'dya --dya-validate' for full report.
 | **Required fields** | Each block type must have required fields |
 | **Config keys** | Only valid keys in config block |
 | **References** | All `$${source.key}` must reference defined sources |
-| **Priority order** | Dynamic dicts must respect priority when referencing others |
 
 ## BOM Handling
 
