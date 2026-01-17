@@ -57,14 +57,18 @@ command: echo complex ${arg1}
 args:
   - alias: --flag
     command: --flag
+    helper: arg helper --flag
   - alias: --opt ${val}
     command: --opt ${val}
+    helper: arg helper --opt ${val}
 sub:
   - alias: sub1
     command: sub1
+    helper: sub helper sub1
     sub:
       - alias: deep
         command: deep
+        helper: sub sub deep
 
 ---
 type: command
@@ -192,4 +196,252 @@ name: Check JSON Local
 alias: check-json-local
 command: echo "Value is $${locals.json_key}"
 helper: Verify json_key value
+
+# ============================================================================
+# MIXED MODE TESTS: List mode + Direct mode combinations
+# ============================================================================
+
+---
+# Dict for direct mode access (keyed by db type)
+type: dict
+name: default_users
+data:
+  - oracle: scott
+    postgres: admin
+    mysql: root
+
+---
+# Dict with multiple items for list+indexed access
+type: dict
+name: db_servers
+data:
+  - name: ora1
+    host: server1.db.local
+    port: 1521
+  - name: ora2
+    host: server2.db.local
+    port: 1522
+  - name: ora3
+    host: server3.db.local
+    port: 1523
+
+---
+# Dynamic dict for list mode
+type: dynamic_dict
+name: dynamic_dbs
+command: |
+  powershell -NoProfile -Command "Write-Output '[{\"id\": \"dyndb1\", \"host\": \"dyn1.db.local\"}, {\"id\": \"dyndb2\", \"host\": \"dyn2.db.local\"}]'"
+mapping:
+  name: id
+  host: host
+
+---
+# Mixed mode: Dict list + Dict direct (default position 0)
+type: command
+name: Mixed Dict List + Dict Direct
+alias: mixed-dd $${db_servers.name}
+command: echo user=$${default_users.oracle} host=$${db_servers.host} port=$${db_servers.port}
+helper: Tests dict list mode with dict direct mode
+
+---
+# Mixed mode: Dict list + Dict direct with explicit index [1]
+type: command
+name: Mixed Dict List + Dict Direct Indexed
+alias: mixed-dd-idx $${db_servers.name}
+command: echo idx_host=$${db_servers[1].host} current=$${db_servers.name}
+helper: Tests indexed access alongside list mode  
+
+---
+# Mixed mode: Dynamic list + Dict direct
+type: command
+name: Mixed Dynamic List + Dict Direct
+alias: mixed-dyn-dict $${dynamic_dbs.name}
+command: echo user=$${default_users.oracle} host=$${dynamic_dbs.host}
+helper: Tests dynamic_dict list mode with dict direct mode
+
+---
+# Mixed mode: Dict list + Dynamic direct
+type: command
+name: Mixed Dict List + Dynamic Direct
+alias: mixed-dict-dyn $${static_envs.name}
+command: echo env=$${static_envs.url} node_ip=$${dynamic_nodes[0].ip}
+helper: Tests dict list mode with dynamic_dict direct mode
+
+---
+# Mixed mode: Dynamic list + Dynamic direct  
+type: command
+name: Mixed Dynamic List + Dynamic Direct
+alias: mixed-dyn-dyn $${dynamic_dbs.name}
+command: echo db=$${dynamic_dbs.host} node=$${dynamic_nodes[0].ip}
+helper: Tests dynamic_dict list mode with dynamic_dict direct mode
+
+---
+# Direct mode only with explicit index
+type: command
+name: Direct Indexed Test
+alias: direct-idx
+command: echo pos0=$${db_servers[0].name} pos1=$${db_servers[1].name} pos2=$${db_servers[2].name}
+helper: Tests multiple indexed accesses in same command
+
+---
+# ============================================================================
+# HELPER TYPE TESTS
+# ============================================================================
+
+# Auto helper type (default) - uses structured format
+type: command
+name: Auto Helper Test
+alias: auto-helper-cmd ${arg}
+command: echo auto ${arg}
+helper_type: auto
+helper: |
+  This command tests the auto helper format.
+  It should display Description, Args, and Options/Subcommands sections.
+args:
+  - alias: ["-o ${file}", "--output ${file}"]
+    command: -o ${file}
+    helper: Output file path
+  - alias: ["-v", "--verbose"]
+    command: --verbose
+    helper: Enable verbose mode
+sub:
+  - alias: sub-action
+    command: sub-action
+    helper: Execute sub action
+    args:
+      - alias: ["-f", "--force"]
+        command: --force
+        helper: Force execution
+
+---
+# Custom helper type - uses raw concatenated format
+type: command
+name: Custom Helper Test
+alias: custom-helper-cmd ${arg}
+command: echo custom ${arg}
+helper_type: custom
+helper: |
+  CUSTOM HELPER
+  =============
+  This is a custom formatted helper.
+  
+  Usage:
+    dya custom-helper-cmd <arg>
+  
+  This helper is displayed exactly as written.
+args:
+  - alias: --custom-flag
+    command: --custom-flag
+    helper: A custom flag option
+sub:
+  - alias: custom-sub
+    command: custom-sub
+    helper: |
+      CUSTOM SUB HELPER
+      Custom subcommand help text.
+
+---
+# Test for array alias validation (valid case)
+type: command
+name: Valid Array Alias Test
+alias: valid-array
+command: echo valid
+args:
+  - alias: ["-i ${input}", "--input ${input}"]
+    command: -i ${input}
+    helper: Input file with valid array aliases
+  - alias: ["-q", "--quiet"]
+    command: --quiet
+    helper: Quiet mode
+
+---
+# ============================================================================
+# DEEP NESTED SUBCOMMAND TEST (3+ levels)
+# Tests auto helper with deeply nested structure
+# ============================================================================
+
+type: command
+name: Deep Nested Auto Helper
+alias: deep-cmd
+command: echo deep
+helper_type: auto
+helper: |
+  Root command for testing deep nested subcommands.
+  All levels have helpers and args.
+args:
+  - alias: ["-v", "--verbose"]
+    command: --verbose
+    helper: Enable verbose output at root level
+  - alias: ["-c ${config}", "--config ${config}"]
+    command: --config ${config}
+    helper: Specify configuration file
+sub:
+  # Level 1: First subcommand
+  - alias: level1
+    command: level1
+    helper: |
+      First level subcommand.
+      Demonstrates nested structure with its own args.
+    args:
+      - alias: ["-f", "--force"]
+        command: --force
+        helper: Force operation at level 1
+      - alias: --dry-run
+        command: --dry-run
+        helper: Simulate without making changes
+    sub:
+      # Level 2: Second level subcommand
+      - alias: level2 ${target}
+        command: level2 ${target}
+        helper: |
+          Second level subcommand with user variable.
+          Accepts target parameter.
+        args:
+          - alias: ["-o ${output}", "--output ${output}"]
+            command: -o ${output}
+            helper: Output file path at level 2
+          - alias: --skip-validation
+            command: --skip-validation
+            helper: Skip validation checks
+        sub:
+          # Level 3: Third level subcommand
+          - alias: level3 ${action}
+            command: level3 ${action}
+            helper: |
+              Third level subcommand.
+              Executes the specified action.
+            args:
+              - alias: ["-r", "--recursive"]
+                command: --recursive
+                helper: Apply recursively at level 3
+              - alias: ["-n ${count}", "--number ${count}"]
+                command: -n ${count}
+                helper: Number of iterations
+          # Level 3: Alternative action
+          - alias: finalize
+            command: finalize
+            helper: Finalize the operation at level 3
+            args:
+              - alias: --confirm
+                command: --confirm
+                helper: Confirm finalization
+      # Level 2: Alternative path
+      - alias: process ${file}
+        command: process ${file}
+        helper: Process a specific file at level 2
+        args:
+          - alias: ["-m ${mode}", "--mode ${mode}"]
+            command: --mode ${mode}
+            helper: Processing mode (fast/slow/normal)
+  # Level 1: Second top-level subcommand
+  - alias: status
+    command: status
+    helper: Show current status
+    args:
+      - alias: ["-a", "--all"]
+        command: --all
+        helper: Show all status information
+      - alias: --json
+        command: --json
+        helper: Output in JSON format
 

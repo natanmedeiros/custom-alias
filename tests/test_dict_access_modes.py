@@ -194,6 +194,101 @@ class TestDictAccessModes(unittest.TestCase):
             self.assertEqual(variables['dynamic_nodes']['name'], 'node-1')
             self.assertEqual(variables['dynamic_nodes']['ip'], '10.0.0.1')
 
+    # =========================================================================
+    # Mixed Mode Tests: List mode + Direct mode combinations
+    # =========================================================================
+    
+    def test_mixed_mode_dict_list_with_dict_direct(self):
+        """Mixed mode: Dict list in alias + Dict direct in command."""
+        result = self.executor.find_command(["mixed-dd", "ora1"])
+        self.assertIsNotNone(result, "Command 'mixed-dd ora1' not found")
+        
+        chain, variables, is_help, remaining = result
+        
+        # List mode context
+        self.assertIn('db_servers', variables)
+        self.assertEqual(variables['db_servers']['name'], 'ora1')
+        
+        # Resolve command with both modes
+        from dynamic_alias.utils import VariableResolver
+        full_template = " ".join([obj.command for obj in chain])
+        resolved = VariableResolver.resolve_app_vars(
+            full_template,
+            resolver_func=self.resolver.resolve_one,
+            context_vars=variables
+        )
+        
+        # Check both modes resolved
+        self.assertIn("scott", resolved, "Direct mode default_users.oracle not resolved")
+        self.assertIn("server1.db.local", resolved, "List mode db_servers.host not resolved")
+        self.assertNotIn("$${", resolved, "Some variables not resolved")
+    
+    def test_mixed_mode_with_explicit_index(self):
+        """Mixed mode: List mode + Direct mode with explicit index [1]."""
+        result = self.executor.find_command(["mixed-dd-idx", "ora3"])
+        self.assertIsNotNone(result, "Command 'mixed-dd-idx ora3' not found")
+        
+        chain, variables, is_help, remaining = result
+        
+        # List mode matched ora3
+        self.assertEqual(variables['db_servers']['name'], 'ora3')
+        
+        # Resolve with explicit index [1] accessing second item
+        from dynamic_alias.utils import VariableResolver
+        full_template = " ".join([obj.command for obj in chain])
+        resolved = VariableResolver.resolve_app_vars(
+            full_template,
+            resolver_func=self.resolver.resolve_one,
+            context_vars=variables
+        )
+        
+        # idx_host should be from position 1 (ora2), current from matched (ora3)
+        self.assertIn("server2.db.local", resolved, "Indexed [1] access not resolved to second item")
+        self.assertIn("ora3", resolved, "List mode current not resolved")
+    
+    def test_mixed_mode_dynamic_list_with_dict_direct(self):
+        """Mixed mode: Dynamic dict list + Dict direct."""
+        with patch('dynamic_alias.resolver.subprocess.run') as mock_run:
+            mock_run.return_value.stdout = '[{"id": "dyndb1", "host": "dyn1.db.local"}]'
+            mock_run.return_value.returncode = 0
+            
+            result = self.executor.find_command(["mixed-dyn-dict", "dyndb1"])
+            self.assertIsNotNone(result, "Command 'mixed-dyn-dict dyndb1' not found")
+            
+            chain, variables, is_help, remaining = result
+            
+            self.assertIn('dynamic_dbs', variables)
+            
+            from dynamic_alias.utils import VariableResolver
+            full_template = " ".join([obj.command for obj in chain])
+            resolved = VariableResolver.resolve_app_vars(
+                full_template,
+                resolver_func=self.resolver.resolve_one,
+                context_vars=variables
+            )
+            
+            self.assertIn("scott", resolved, "Direct dict access not resolved")
+            self.assertIn("dyn1.db.local", resolved, "List dynamic_dbs.host not resolved")
+    
+    def test_direct_indexed_multiple_positions(self):
+        """Direct mode only: Multiple indexed accesses to different positions."""
+        result = self.executor.find_command(["direct-idx"])
+        self.assertIsNotNone(result, "Command 'direct-idx' not found")
+        
+        chain, variables, is_help, remaining = result
+        
+        from dynamic_alias.utils import VariableResolver
+        full_template = " ".join([obj.command for obj in chain])
+        resolved = VariableResolver.resolve_app_vars(
+            full_template,
+            resolver_func=self.resolver.resolve_one,
+            context_vars=variables
+        )
+        
+        # Should resolve all three positions
+        self.assertIn("ora1", resolved, "Position 0 not resolved")
+        self.assertIn("ora2", resolved, "Position 1 not resolved")
+        self.assertIn("ora3", resolved, "Position 2 not resolved")
 
 class TestTerminalReset(unittest.TestCase):
     """Test terminal reset functionality."""

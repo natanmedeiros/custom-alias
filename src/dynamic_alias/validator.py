@@ -179,7 +179,8 @@ class CommandBlockValidator(BlockValidationStrategy):
             if not isinstance(arg, dict):
                 continue
             
-            arg_name = arg.get('alias', f'arg_{i}')
+            arg_alias = arg.get('alias', f'arg_{i}')
+            arg_name = arg_alias if isinstance(arg_alias, str) else str(arg_alias)
             
             # Check required fields
             required = ['alias', 'command']
@@ -190,6 +191,10 @@ class CommandBlockValidator(BlockValidationStrategy):
                     message=f"Arg '{arg_name}' in '{parent_name}' missing: {', '.join(missing)}",
                     hint="Args require 'alias' and 'command' fields"
                 ))
+            
+            # Validate alias array structure if alias is a list
+            if 'alias' in arg:
+                self._validate_alias_array(arg['alias'], parent_name, report)
             
             # Args cannot have sub or args (rule 5.2)
             if 'sub' in arg:
@@ -203,6 +208,41 @@ class CommandBlockValidator(BlockValidationStrategy):
                     passed=False,
                     message=f"Arg '{arg_name}' in '{parent_name}' cannot have nested 'args'",
                     hint="Args are non-recursive"
+                ))
+    
+    def _validate_alias_array(self, alias, parent_name: str, report: ValidationReport) -> None:
+        """Validate that all aliases in an array have the same variable structure."""
+        if not isinstance(alias, list):
+            return  # Single string alias, nothing to validate
+        
+        if len(alias) < 2:
+            return  # Single item list, nothing to compare
+        
+        import re
+        var_pattern = r'\$\{(\w+)\}|\$\$\{(\w+)(?:\[\d+\])?\.(\w+)\}'
+        
+        def extract_var_structure(text: str) -> str:
+            """Extract variable structure from alias (order and names preserved)."""
+            matches = re.findall(var_pattern, text)
+            # Return a normalized structure string
+            vars_list = []
+            for match in matches:
+                if match[0]:  # User variable ${var}
+                    vars_list.append(f"${{{match[0]}}}")
+                elif match[1]:  # App variable $${source.key}
+                    vars_list.append(f"$${{{match[1]}.{match[2]}}}")
+            return '|'.join(vars_list)
+        
+        # Get structure from first alias
+        first_structure = extract_var_structure(alias[0])
+        
+        for idx, alt_alias in enumerate(alias[1:], start=1):
+            alt_structure = extract_var_structure(alt_alias)
+            if alt_structure != first_structure:
+                report.add(ValidationResult(
+                    passed=False,
+                    message=f"Arg alias array in '{parent_name}' has inconsistent variable structure",
+                    hint=f"All aliases must have same variables. '{alias[0]}' has '{first_structure or '(none)'}' but '{alt_alias}' has '{alt_structure or '(none)'}'"
                 ))
 
 
@@ -249,6 +289,9 @@ class ConfigValidator:
         
         # 6. Validate priority order for dynamic_dict references
         self._validate_priority_order()
+        
+        # 7. Validate dict index bounds and key existence (static dicts only)
+        self._validate_dict_index_and_keys()
         
         return self.report
     
@@ -376,7 +419,7 @@ class ConfigValidator:
         for name, dd in self.dynamic_dicts.items():
             cmd = dd.get('command', '')
             refs = self._extract_references(cmd)
-            for source, key in refs:
+            for source, _index, key in refs:
                 if source not in all_sources:
                     self.report.add(ValidationResult(
                         passed=False,
@@ -394,7 +437,7 @@ class ConfigValidator:
             # Check alias and command
             for text in [alias, command_str]:
                 refs = self._extract_references(text)
-                for source, key in refs:
+                for source, _index, key in refs:
                     if source not in all_sources:
                         self.report.add(ValidationResult(
                             passed=False,
@@ -423,7 +466,7 @@ class ConfigValidator:
                 continue
             for text in [sub.get('alias', ''), sub.get('command', '')]:
                 refs = self._extract_references(text)
-                for source, key in refs:
+                for source, _index, key in refs:
                     if source not in all_sources:
                         self.report.add(ValidationResult(
                             passed=False,
@@ -440,7 +483,7 @@ class ConfigValidator:
                 continue
             for text in [arg.get('alias', ''), arg.get('command', '')]:
                 refs = self._extract_references(text)
-                for source, key in refs:
+                for source, _index, key in refs:
                     if source not in all_sources:
                         self.report.add(ValidationResult(
                             passed=False,
@@ -465,7 +508,7 @@ class ConfigValidator:
             cmd = dd.get('command', '')
             refs = self._extract_references(cmd)
             
-            for source, key in refs:
+            for source, _index, key in refs:
                 if source in priorities:
                     ref_priority = priorities[source]
                     # With lazy loading, priority order is not essential for correctness
@@ -495,7 +538,7 @@ class ConfigValidator:
             cmd = dd.get('command', '')
             refs = self._extract_references(cmd)
             # Only track references to other dynamic_dicts (not static dicts)
-            deps = {source for source, key in refs if source in self.dynamic_dicts}
+            deps = {source for source, _index, key in refs if source in self.dynamic_dicts}
             graph[name] = deps
         
         # DFS to detect cycles
@@ -543,7 +586,111 @@ class ConfigValidator:
                 passed=True,
                 message="No circular references in dynamic_dict dependencies"
             ))
-
+    
+    def _validate_dict_index_and_keys(self):
+        """
+        Validate that indexed references to static dicts have valid bounds and keys.
+        
+        For $${dict[N].key}:
+        - Check that index N is within bounds of dict.data
+        - Check that key exists in dict.data[N]
+        
+        Dynamic dicts are skipped (data unknown at validation time).
+        """
+        errors_found = False
+        
+        def validate_reference(source: str, index_str: str, key: str, 
+                               context: str, location: str):
+            """Validate a single reference against static dict."""
+            nonlocal errors_found
+            
+            # Skip if not a static dict
+            if source not in self.dicts:
+                return
+            
+            # Skip 'locals' (built-in)
+            if source == 'locals':
+                return
+            
+            dict_data = self.dicts[source].get('data', [])
+            dict_size = len(dict_data)
+            
+            # Parse index (default 0)
+            index = int(index_str) if index_str else 0
+            
+            # Check index bounds
+            if index >= dict_size:
+                errors_found = True
+                self.report.add(ValidationResult(
+                    passed=False,
+                    message=f"{context} uses index [{index}] but '{source}' only has {dict_size} items",
+                    hint=f"Valid indices for '{source}': 0 to {dict_size - 1}" if dict_size > 0 else f"Dict '{source}' is empty",
+                    location=location
+                ))
+                return
+            
+            # Check key exists at that index
+            item = dict_data[index]
+            if isinstance(item, dict) and key not in item:
+                errors_found = True
+                available_keys = list(item.keys())
+                self.report.add(ValidationResult(
+                    passed=False,
+                    message=f"{context} references key '{key}' not found at '{source}[{index}]'",
+                    hint=f"Available keys at position {index}: {', '.join(available_keys)}" if available_keys else "Item has no keys",
+                    location=location
+                ))
+        
+        # Check all commands
+        for cmd in self.commands:
+            name = cmd.get('name', 'unnamed')
+            block_idx = cmd.get('_block_index', '?')
+            
+            for text in [cmd.get('alias', ''), cmd.get('command', '')]:
+                refs = self._extract_references(text)
+                for source, index_str, key in refs:
+                    validate_reference(source, index_str, key, 
+                                       f"command '{name}'", f"Block {block_idx}")
+            
+            # Check subcommands and args
+            self._check_sub_dict_refs(cmd.get('sub', []), name, validate_reference)
+            self._check_arg_dict_refs(cmd.get('args', []), name, validate_reference)
+        
+        # Check dynamic_dict commands (they might reference static dicts)
+        for name, dd in self.dynamic_dicts.items():
+            block_idx = dd.get('_block_index', '?')
+            refs = self._extract_references(dd.get('command', ''))
+            for source, index_str, key in refs:
+                validate_reference(source, index_str, key,
+                                   f"dynamic_dict '{name}'", f"Block {block_idx}")
+        
+        if not errors_found:
+            self.report.add(ValidationResult(
+                passed=True,
+                message="All dict index and key references are valid"
+            ))
+    
+    def _check_sub_dict_refs(self, subs: List, parent: str, validate_fn):
+        """Recursively check dict references in subcommands."""
+        for sub in subs:
+            if not isinstance(sub, dict):
+                continue
+            for text in [sub.get('alias', ''), sub.get('command', '')]:
+                refs = self._extract_references(text)
+                for source, index_str, key in refs:
+                    validate_fn(source, index_str, key, f"subcommand in '{parent}'", parent)
+            self._check_sub_dict_refs(sub.get('sub', []), parent, validate_fn)
+            self._check_arg_dict_refs(sub.get('args', []), parent, validate_fn)
+    
+    def _check_arg_dict_refs(self, args: List, parent: str, validate_fn):
+        """Check dict references in args."""
+        for arg in args:
+            if not isinstance(arg, dict):
+                continue
+            for text in [arg.get('alias', ''), arg.get('command', '')]:
+                refs = self._extract_references(text)
+                for source, index_str, key in refs:
+                    validate_fn(source, index_str, key, f"arg in '{parent}'", parent)
 
 def print_validation_report(report: ValidationReport, shortcut: str = "dya"):
     """Print user-friendly validation report with checklist format."""
@@ -558,7 +705,7 @@ def print_validation_report(report: ValidationReport, shortcut: str = "dya"):
     print("  " + "-"*40)
     
     for result in report.results:
-        status = "✓" if result.passed else "✗"
+        status = "OK" if result.passed else "FAIL"
         color_start = "" 
         color_end = ""
         
@@ -580,11 +727,11 @@ def print_validation_report(report: ValidationReport, shortcut: str = "dya"):
     failed = report.failed_count
     
     if report.passed:
-        print(f"\n  ✓ All {total} checks passed!")
+        print(f"\n  [OK] All {total} checks passed!")
         print(f"\n  Configuration is valid.\n")
     else:
         print(f"\n  Results: {passed}/{total} passed, {failed} failed")
-        print(f"\n  ✗ Configuration has {failed} error(s).")
+        print(f"\n  [FAIL] Configuration has {failed} error(s).")
         print(f"  Please fix the issues above and run validation again.\n")
     
     print(f"{'='*60}\n")
@@ -602,7 +749,7 @@ def print_validation_errors(report: ValidationReport, shortcut: str = "dya"):
     
     for result in report.results:
         if not result.passed:
-            print(f"  ✗ {result.message}")
+            print(f"  [FAIL] {result.message}")
             if result.location:
                 print(f"    Location: {result.location}")
             if result.hint:

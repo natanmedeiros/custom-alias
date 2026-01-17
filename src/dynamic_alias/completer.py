@@ -64,17 +64,25 @@ class DynamicAliasCompleter(Completer):
             # 2. Try match ARGS in (matched_cmd_node) context
             if matched_cmd_node and hasattr(matched_cmd_node, 'args'):
                 for arg in matched_cmd_node.args:
-                    if arg.alias in used_args_in_scope:
+                    # Get all alias variants (could be string or list)
+                    alias_variants = arg.alias if isinstance(arg.alias, list) else [arg.alias]
+                    primary_alias = alias_variants[0]
+                    
+                    if primary_alias in used_args_in_scope:
                         continue
                     
-                    arg_parts = arg.alias.split()
-                    if part_idx + len(arg_parts) <= len(parts) - 1:
-                        is_match, _, _ = self.executor._match_alias_parts(arg_parts, parts[part_idx:part_idx+len(arg_parts)])
-                        if is_match:
-                             used_args_in_scope.add(arg.alias)
-                             part_idx += len(arg_parts)
-                             match_found = True
-                             break
+                    # Try matching any variant
+                    for alias_variant in alias_variants:
+                        arg_parts = alias_variant.split()
+                        if part_idx + len(arg_parts) <= len(parts) - 1:
+                            is_match, _, _ = self.executor._match_alias_parts(arg_parts, parts[part_idx:part_idx+len(arg_parts)])
+                            if is_match:
+                                used_args_in_scope.add(primary_alias)
+                                part_idx += len(arg_parts)
+                                match_found = True
+                                break
+                    if match_found:
+                        break
             
             if match_found:
                 continue
@@ -106,9 +114,14 @@ class DynamicAliasCompleter(Completer):
             # 1. Partial Arg?
             if matched_cmd_node and hasattr(matched_cmd_node, 'args'):
                 for arg in matched_cmd_node.args:
-                    if arg.alias in used_args_in_scope:
+                    alias_variants = arg.alias if isinstance(arg.alias, list) else [arg.alias]
+                    primary_alias = alias_variants[0]
+                    
+                    if primary_alias in used_args_in_scope:
                         continue
-                    arg_parts = arg.alias.split()
+                    
+                    for alias_variant in alias_variants:
+                        arg_parts = alias_variant.split()
                     # Check prefix match
                     # We have `parts[part_idx : -1]` (Completed tokens after match)
                     # And `parts[-1]` (Typing)
@@ -163,7 +176,8 @@ class DynamicAliasCompleter(Completer):
                         # Dynamic Var $${...}
                         app_var_match = re.match(REGEX_APP_VAR, expected_token_alias)
                         if app_var_match:
-                            source, key = app_var_match.group(1), app_var_match.group(2)
+                            # Groups: (1) source, (2) optional index, (3) key
+                            source, key = app_var_match.group(1), app_var_match.group(3)
                             # Lazy load: only resolve this dict when needed
                             data = self.resolver.resolve_one(source)
                             for item in data:
@@ -209,21 +223,25 @@ class DynamicAliasCompleter(Completer):
                 # Args (unused)
                 if hasattr(matched_cmd_node, 'args'):
                     for arg in matched_cmd_node.args:
-                        if arg.alias not in used_args_in_scope:
+                        alias_variants = arg.alias if isinstance(arg.alias, list) else [arg.alias]
+                        primary_alias = alias_variants[0]
+                        if primary_alias not in used_args_in_scope:
                             candidates.append(arg)
             else:
                 # Root commands
                 candidates.extend(self.resolver.config.commands)
             
             for cand in candidates:
-                # First token of alias
-                cand_parts = cand.alias.split()
+                # First token of alias (use primary alias for candidates)
+                cand_alias = cand.alias[0] if isinstance(cand.alias, list) else cand.alias
+                cand_parts = cand_alias.split()
                 head = cand_parts[0]
                 
                 # Handling dynamic vars $${...}
                 app_var_match = re.match(REGEX_APP_VAR, head)
                 if app_var_match:
-                    source, key = app_var_match.group(1), app_var_match.group(2)
+                    # Groups: (1) source, (2) optional index, (3) key
+                    source, key = app_var_match.group(1), app_var_match.group(3)
                     # Lazy load: only resolve this dict when needed
                     data = self.resolver.resolve_one(source)
                     for item in data:

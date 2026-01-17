@@ -50,10 +50,11 @@ class CommandExecutor:
         # Iterate over available input parts. If input is shorter, matched will be decided by length check at end,
         # unless we find a help flag which shortcuts the process.
         for i, (alias_token, user_token) in enumerate(zip(alias_parts, input_parts)):
-            # 1. Check for app variable: $${source.key}
+            # 1. Check for app variable: $${source.key} or $${source[N].key}
             app_var = VariableResolver.parse_app_var(alias_token)
             if app_var:
-                source_name, key_name = app_var
+                # Note: index is ignored for list mode (alias matching uses all items)
+                source_name, _index, key_name = app_var
 
                 # Rule 1.3.5: Partial match help for dynamic variables too
                 if user_token in ('-h', '--help'):
@@ -125,20 +126,27 @@ class CommandExecutor:
         while remaining_args and hasattr(command_obj, 'args') and command_obj.args:
             found_arg = False
             for arg_obj in command_obj.args:
-                arg_alias_parts = arg_obj.alias.split()
-                matched_arg, arg_vars, arg_is_help = self._match_alias_parts(arg_alias_parts, remaining_args[:len(arg_alias_parts)])
+                # Support array aliases - try each variant
+                alias_variants = arg_obj.alias if isinstance(arg_obj.alias, list) else [arg_obj.alias]
                 
-                if arg_is_help:
-                    variables.update(arg_vars)
-                    current_chain.append(arg_obj)
-                    return current_chain, variables, True, []
+                for alias_variant in alias_variants:
+                    arg_alias_parts = alias_variant.split()
+                    matched_arg, arg_vars, arg_is_help = self._match_alias_parts(arg_alias_parts, remaining_args[:len(arg_alias_parts)])
+                    
+                    if arg_is_help:
+                        variables.update(arg_vars)
+                        current_chain.append(arg_obj)
+                        return current_chain, variables, True, []
+                    
+                    if matched_arg:
+                        variables.update(arg_vars)
+                        current_chain.append(arg_obj)
+                        remaining_args = remaining_args[len(arg_alias_parts):]
+                        found_arg = True
+                        break
                 
-                if matched_arg:
-                    variables.update(arg_vars)
-                    current_chain.append(arg_obj)
-                    remaining_args = remaining_args[len(arg_alias_parts):]
-                    found_arg = True
-                    break 
+                if found_arg:
+                    break
             
             if not found_arg:
                 break
@@ -286,21 +294,20 @@ class CommandExecutor:
             _restore_terminal_state(terminal_state)
 
     def print_help(self, command_chain: List[Union[CommandConfig, SubCommand, ArgConfig]]):
-        """Prints helper text for the matched command chain."""
+        """Prints helper text for the matched command chain using the appropriate formatter."""
+        from .helper_formatter import get_helper_formatter
+        
         print_formatted_text(HTML("\n<b><cyan>HELPER</cyan></b>\n"))
         
-        found_help = False
-        for obj in command_chain:
-            if obj.helper:
-                found_help = True
-                print_formatted_text(HTML(f"<b><yellow>Command:</yellow></b> {obj.alias}"))
-                print(obj.helper.strip())
-                print("-" * 20)
+        # Determine helper_type from root command (CommandConfig)
+        helper_type = "auto"
+        if command_chain and isinstance(command_chain[0], CommandConfig):
+            helper_type = command_chain[0].helper_type
         
+        formatter = get_helper_formatter(helper_type)
+        output = formatter.format(command_chain)
+        print(output)
 
-        if not found_help:
-            print("No helper information available for this command.")
-            
         print()
         print("Command Line Interface powered by Dynamic Alias")
         print(f"To display {CUSTOM_SHORTCUT} helper use --{CUSTOM_SHORTCUT}-help")

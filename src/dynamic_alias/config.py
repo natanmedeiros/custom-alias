@@ -176,6 +176,7 @@ class ConfigLoader:
             alias=doc['alias'],
             command=doc['command'],
             helper=doc.get('helper'),
+            helper_type=doc.get('helper_type', 'auto'),  # Default to 'auto'
             sub=subs,
             args=[self._parse_arg(a) for a in doc.get('args', [])],
             timeout=doc.get('timeout', 0), # Rule 4.9
