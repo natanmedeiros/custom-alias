@@ -19,6 +19,7 @@ license = {text = "MIT"}
 dependencies = [
     "prompt_toolkit",
     "PyYAML",
+    "cryptography",
 ]
 classifiers = [
     "Development Status :: 5 - Production/Stable",

@@ -86,3 +86,4 @@ CACHE_KEY_HISTORY = '_history'
 CACHE_KEY_LOCALS = '_locals'
 CACHE_KEY_TIMESTAMP = 'timestamp'
 CACHE_KEY_DATA = 'data'
+CACHE_KEY_CRYPT = '_crypt'  # Rule 1.2.28: Encrypted cache data key

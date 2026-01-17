@@ -195,12 +195,18 @@ class CommandExecutor:
         
         # Refactored to use VariableResolver (DRY)
         
+        # Determine verbose log callback
+        verbose_log = None
+        if self.resolver.config.global_config.verbose:
+            verbose_log = self.resolver.add_verbose_log
+        
         # 1. App Vars ($${source.key})
         cmd_resolved = VariableResolver.resolve_app_vars(
             full_template, 
             resolver_func=self.resolver.resolve_one,
             context_vars=variables,
-            use_local_cache=lambda k: self.resolver.cache.get_local(k)
+            use_local_cache=lambda k: self.resolver.cache.get_local(k),
+            verbose_log=verbose_log
         )
         
         # 2. User Vars (${var})
@@ -254,9 +260,11 @@ class CommandExecutor:
                     if not isinstance(output_data, dict):
                          raise ValueError("Output must be a JSON object (dict), not a list or scalar")
                     
-                    # Store in locals
+                    # Store in locals with verbose logging
                     for key, value in output_data.items():
                         self.resolver.cache.set_local(str(key), str(value))
+                        if self.resolver.config.global_config.verbose:
+                            print(f"[VERBOSE] Set local: {key} = '{value}'")
                     
                     print(json.dumps(output_data, indent=2))
                     

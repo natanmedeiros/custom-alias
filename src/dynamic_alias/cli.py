@@ -25,6 +25,7 @@ class DynamicAliasCLI:
         self.clear_all_flag = f"--{CUSTOM_SHORTCUT}-clear-all"
         self.set_locals_flag = f"--{CUSTOM_SHORTCUT}-set-locals"
         self.clear_locals_flag = f"--{CUSTOM_SHORTCUT}-clear-locals"
+        self.dump_flag = f"--{CUSTOM_SHORTCUT}-dump"
         self.dya_help_flag = f"--{CUSTOM_SHORTCUT}-help"
 
     def run(self):
@@ -52,7 +53,7 @@ class DynamicAliasCLI:
             sys.exit(exit_code)
             
         # Handle Cache/Locals Management
-        if self._handle_management_flags(parsed, final_cache_path):
+        if self._handle_management_flags(parsed, final_cache_path, final_config_path):
             return
 
         # Ensure Config (SHA Check)
@@ -134,6 +135,7 @@ class DynamicAliasCLI:
             self.set_locals_key: Optional[str] = None
             self.set_locals_value: Optional[str] = None
             self.clear_locals = False
+            self.dump_cache = False
             self.filtered_args: List[str] = []
             self.should_exit = False
 
@@ -179,32 +181,51 @@ class DynamicAliasCLI:
             elif arg == self.clear_locals_flag:
                 parsed.clear_locals = True
                 i += 1
+            elif arg == self.dump_flag:
+                parsed.dump_cache = True
+                i += 1
             else:
                 parsed.filtered_args.append(arg)
                 i += 1
         return parsed
 
     def _resolve_paths(self, parsed: 'ParsedArgs'):
+        # Rule 1.2.6/1.2.8: New default paths in ~/.${shortcut}/ directory
         if parsed.config_override:
             final_config = os.path.expanduser(parsed.config_override)
         else:
             final_config = resolve_path(
-                [f".{CUSTOM_SHORTCUT}.yaml", f"{CUSTOM_SHORTCUT}.yaml", f"~/.{CUSTOM_SHORTCUT}.yaml", f"~/{CUSTOM_SHORTCUT}.yaml"],
-                f"~/.{CUSTOM_SHORTCUT}.yaml"
+                [f".{CUSTOM_SHORTCUT}.yaml", f"{CUSTOM_SHORTCUT}.yaml", 
+                 f"~/.{CUSTOM_SHORTCUT}/{CUSTOM_SHORTCUT}.yaml"],
+                f"~/.{CUSTOM_SHORTCUT}/{CUSTOM_SHORTCUT}.yaml"
             )
 
         if parsed.cache_override:
             final_cache = os.path.expanduser(parsed.cache_override)
         else:
             final_cache = resolve_path(
-                [f".{CUSTOM_SHORTCUT}.json", f"{CUSTOM_SHORTCUT}.json", f"~/.{CUSTOM_SHORTCUT}.json", f"~/{CUSTOM_SHORTCUT}.json"],
-                f"~/.{CUSTOM_SHORTCUT}.json"
+                [f".{CUSTOM_SHORTCUT}.json", f"{CUSTOM_SHORTCUT}.json", 
+                 f"~/.{CUSTOM_SHORTCUT}/{CUSTOM_SHORTCUT}.json"],
+                f"~/.{CUSTOM_SHORTCUT}/{CUSTOM_SHORTCUT}.json"
             )
         return final_config, final_cache
 
-    def _handle_management_flags(self, parsed: 'ParsedArgs', cache_path: str) -> bool:
+    def _handle_management_flags(self, parsed: 'ParsedArgs', cache_path: str, config_path: str = None) -> bool:
         """Returns True if execution should stop (action performed)."""
-        if parsed.clear_cache or parsed.clear_history or parsed.clear_all or parsed.set_locals_key or parsed.clear_locals:
+        if parsed.clear_cache or parsed.clear_history or parsed.clear_all or parsed.set_locals_key or parsed.clear_locals or parsed.dump_cache:
+            import json
+            
+            # Try to load config to check verbose setting
+            verbose = False
+            if config_path:
+                try:
+                    from .config import ConfigLoader
+                    loader = ConfigLoader(config_path)
+                    loader.load()
+                    verbose = loader.global_config.verbose
+                except Exception:
+                    pass  # Config load failed - skip verbose
+            
             cache = CacheManager(cache_path, True)
             try:
                 cache.load()
@@ -214,8 +235,15 @@ class DynamicAliasCLI:
                 print(f"  Action: Attempted to load cache for --{self.clear_cache_flag.lstrip('--')} or related flag")
                 print(f"  Cache path: {cache_path}")
             
+            if parsed.dump_cache:
+                # Print decrypted cache as JSON
+                print(json.dumps(cache.cache, indent=2, ensure_ascii=False))
+                return True
+            
             if parsed.clear_all:
                 if cache.delete_all():
+                    if verbose:
+                        print(f"[VERBOSE] Cache file deleted: {cache_path}")
                     print(f"Cache file deleted: {cache_path}")
                 else:
                     print(f"Cache file not found: {cache_path}")
@@ -223,6 +251,8 @@ class DynamicAliasCLI:
             
             if parsed.clear_cache:
                 count = cache.clear_cache()
+                if verbose:
+                    print(f"[VERBOSE] Cache modified: cleared {count} dynamic dict entries")
                 print(f"Cleared {count} cache entries (history preserved)")
             
             if parsed.clear_history:
@@ -233,10 +263,14 @@ class DynamicAliasCLI:
             
             if parsed.set_locals_key:
                 cache.set_local(parsed.set_locals_key, parsed.set_locals_value)
+                if verbose:
+                    print(f"[VERBOSE] Cache modified: set _locals.{parsed.set_locals_key} = '{parsed.set_locals_value}'")
                 print(f"Local variable set: {parsed.set_locals_key}={parsed.set_locals_value}")
             
             if parsed.clear_locals:
                 if cache.clear_locals():
+                    if verbose:
+                        print("[VERBOSE] Cache modified: cleared all _locals")
                     print("Local variables cleared")
                 else:
                     print("No local variables to clear")
@@ -247,7 +281,8 @@ class DynamicAliasCLI:
     def _ensure_default_config(self):
         # Rules 1.1.12, 1.1.13 + SHA Enforcement
         bundled = os.path.join(os.path.dirname(__file__), f"{CUSTOM_SHORTCUT}.yaml")
-        user_home = os.path.expanduser(f"~/.{CUSTOM_SHORTCUT}.yaml")
+        user_dir = os.path.expanduser(f"~/.{CUSTOM_SHORTCUT}")
+        user_home = os.path.join(user_dir, f"{CUSTOM_SHORTCUT}.yaml")
         
         if os.path.exists(bundled):
             should_copy = False
@@ -268,6 +303,8 @@ class DynamicAliasCLI:
 
             if should_copy:
                 try:
+                    # Ensure directory exists before copying
+                    os.makedirs(user_dir, exist_ok=True)
                     shutil.copy(bundled, user_home)
                     print(f"[{CUSTOM_NAME}] Updating default configuration from bundle: {reason}")
                 except Exception as e:
@@ -311,6 +348,7 @@ class DynamicAliasCLI:
         print(f"  {self.clear_all_flag}          : Delete entire cache file")
         print(f"  {self.set_locals_flag} <k> <v> : Set a local variable")
         print(f"  {self.clear_locals_flag}       : Clear all local variables")
+        print(f"  {self.dump_flag}               : Print decrypted cache as JSON")
         print(f"  {self.dya_help_flag}               : Display this command line builder help")
         print("\nDocumentation:")
         print("  https://github.com/natanmedeiros/dynamic-alias?tab=readme-ov-file#documentation")

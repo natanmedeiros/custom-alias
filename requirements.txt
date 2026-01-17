@@ -1,3 +1,4 @@
 prompt_toolkit
 pyyaml
+cryptography
 build

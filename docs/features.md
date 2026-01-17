@@ -146,6 +146,7 @@ Manage your cache with these flags:
 | `--dya-clear-cache` | Remove cached dynamic dict data (keeps history) |
 | `--dya-clear-history` | Clear command history |
 | `--dya-clear-all` | Delete entire cache file |
+| `--dya-dump` | Print decrypted cache as JSON |
 
 **Examples:**
 
@@ -160,11 +161,32 @@ dya --dya-clear-history
 
 # Delete entire cache file (fresh start)
 dya --dya-clear-all
-# Output: Cache file deleted: ~/.dya.json
+# Output: Cache file deleted: ~/.dya/dya.json
 ```
 
 > [!NOTE]
 > Expired cache entries are automatically purged when loading the cache, based on each dynamic dict's `cache-ttl` setting.
+
+### Interactive Mode Support
+
+Management flags also work in interactive mode:
+
+```bash
+dya> --dya-clear-cache
+Cleared 5 cache entries (history preserved)
+
+dya> --dya-set-locals mykey myvalue
+Local variable set: mykey=myvalue
+
+dya> --dya-dump
+{
+  "_history": ["cmd1", "cmd2"],
+  "_locals": {"mykey": "myvalue"}
+}
+```
+
+> [!WARNING]
+> The `--dya-config` and `--dya-cache` flags are NOT supported in interactive mode. Use them when starting from command line.
 
 ## Locals Management
 
@@ -251,6 +273,55 @@ Fix the 1 error(s) above or run 'dya --dya-validate' for full report.
 | **Config keys** | Only valid keys in config block |
 | **References** | All `$${source.key}` must reference defined sources |
 
+## Cache Encryption
+
+Cache data is automatically encrypted.
+
+### How It Works
+
+The cache file is encrypted using AES-256-GCM with a machine-specific key.
+
+### Automatic Migration
+
+Existing plain JSON cache files are automatically encrypted on the first save after upgrading.
+
+### Encrypted Cache Structure
+
+```json
+{
+  "_crypt": "base64-encoded-encrypted-data..."
+}
+```
+
+> [!WARNING]
+> **Data is tied to this machine.** If you reinstall your operating system or copy the cache file to another machine, encrypted data will become inaccessible. This only affects cached dynamic dict data, history, and locals — not your configuration file.
+
+### Viewing Cache Contents
+
+To view the decrypted cache contents:
+
+```bash
+dya --dya-dump
+```
+
+This outputs the cache as plain JSON, useful for debugging or backup purposes.
+
+### Migrating Cache to Another Machine
+
+To transfer cache data to another machine:
+
+1. **Export** the cache as plain JSON:
+   ```bash
+   dya --dya-dump > cache-backup.json
+   ```
+
+2. **Copy** `cache-backup.json` to the new machine.
+
+3. **Place** the file at the default cache location:
+   - `~/.dya/dya.json` (or your custom shortcut directory)
+
+4. **Run any command** — the application will automatically detect the plain JSON and re-encrypt it with the new machine's key on first save.
+
 ## BOM Handling
 
 Config files with UTF-8 BOM (Byte Order Mark) are automatically handled. This ensures compatibility with files created by Windows editors.
@@ -260,4 +331,5 @@ Config files with UTF-8 BOM (Byte Order Mark) are automatically handled. This en
 | ← Previous | Next → |
 |:-----------|-------:|
 | [Helper System](helper.md) | [Interactive Mode](interactive-mode.md) |
+
 
