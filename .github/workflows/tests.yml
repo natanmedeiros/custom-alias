@@ -60,9 +60,66 @@ jobs:
     - name: Run tests
       run: pytest -vv
 
-  # Backwards compatibility tests with various pip versions
+  # Matrix tests for all Python versions on Windows
+  test-windows:
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12', '3.13']
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest
+        pip install -r requirements.txt
+    
+    - name: Run tests
+      run: pytest -vv
+
+  # Backwards compatibility tests with various pip versions (Ubuntu)
   test-pip-compat:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        pip-version: ['19.3.1', '20.3.4', '21.3.1', '22.3.1', '23.3.2', '24.0']
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.8'
+    
+    - name: Install pip ${{ matrix.pip-version }}
+      run: |
+        python -m pip install pip==${{ matrix.pip-version }}
+        pip --version
+    
+    - name: Test package installation
+      run: |
+        pip install . --no-cache-dir
+        dya --dya-help
+    
+    - name: Install test dependencies and run tests
+      run: |
+        pip install pytest
+        pip install -r requirements.txt
+        pytest -vv
+
+  # Backwards compatibility tests with various pip versions (Windows)
+  test-pip-compat-windows:
+    runs-on: windows-latest
     strategy:
       fail-fast: false
       matrix:
@@ -110,4 +167,3 @@ jobs:
     
     - name: Run tests
       run: pytest -vv
-
